@@ -314,7 +314,12 @@ export default function UserManagement() {
   }, [page, filterRole, filterStatus]);
 
   useEffect(() => {
-    const handleClickOutside = () => setOpenMenuId(null);
+    const handleClickOutside = (e) => {
+      // Check if click is not on the menu or button
+      if (!e.target.closest('[data-menu-container]')) {
+        setOpenMenuId(null);
+      }
+    };
     if (openMenuId) {
       document.addEventListener('click', handleClickOutside);
       return () => document.removeEventListener('click', handleClickOutside);
@@ -451,9 +456,12 @@ export default function UserManagement() {
                       <span className="text-xs text-gray-500">{new Date(u.createdAt).toLocaleDateString()}</span>
                     </td>
                     <td>
-                      <div className="relative inline-block">
+                      <div className="relative inline-block" data-menu-container>
                         <button 
-                          onClick={() => setOpenMenuId(openMenuId === u.id ? null : u.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenMenuId(openMenuId === u.id ? null : u.id);
+                          }}
                           className="p-2 hover:bg-gray-100 rounded-md border border-gray-200 inline-flex items-center justify-center"
                           title="Actions"
                         >
@@ -461,7 +469,7 @@ export default function UserManagement() {
                         </button>
                         
                         {openMenuId === u.id && (
-                          <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                          <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10" onClick={(e) => e.stopPropagation()}>
                             <button 
                               onClick={() => { 
                                 setSelectedUser(u); 
