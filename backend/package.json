@@ -4,6 +4,13 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "prisma:generate": "prisma generate",
+    "prisma:ensure": "node scripts/ensure-prisma-client.js",
+    "postinstall": "npm run prisma:generate",
+    "predev": "npm run prisma:ensure",
+    "prebuild": "npm run prisma:ensure",
+    "prestart": "npm run prisma:ensure",
+    "preseed": "npm run prisma:ensure",
     "dev": "nodemon --exec ts-node src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",

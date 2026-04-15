@@ -17,6 +17,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
     ownerName, shopName, mobileNumber,
     fullAddress, state, pinCode, aadhaarNumber,
   } = req.body;
+  const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
 
   const creatorRole = req.user!.role;
   const allowed = CREATION_PERMISSIONS[creatorRole] || [];
@@ -26,7 +27,14 @@ export const createUser = async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    const exists = await prisma.user.findUnique({ where: { email } });
+    const exists = await prisma.user.findFirst({
+      where: {
+        email: {
+          equals: normalizedEmail,
+          mode: 'insensitive',
+        },
+      },
+    });
     if (exists) {
       res.status(409).json({ success: false, message: 'Email already exists' });
       return;
@@ -42,7 +50,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
 
     const user = await prisma.user.create({
       data: {
-        email,
+        email: normalizedEmail,
         passwordHash,
         role: role as Role,
         parentId: req.user!.id,

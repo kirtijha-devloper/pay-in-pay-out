@@ -5,9 +5,15 @@ import prisma from '../lib/prisma';
 
 export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
+  const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
   try {
-    const user = await prisma.user.findUnique({
-      where: { email },
+    const user = await prisma.user.findFirst({
+      where: {
+        email: {
+          equals: normalizedEmail,
+          mode: 'insensitive',
+        },
+      },
       include: { profile: true, wallet: true },
     });
     if (!user) {

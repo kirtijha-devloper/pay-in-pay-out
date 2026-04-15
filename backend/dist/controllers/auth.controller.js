@@ -9,9 +9,15 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const login = async (req, res) => {
     const { email, password } = req.body;
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
     try {
-        const user = await prisma_1.default.user.findUnique({
-            where: { email },
+        const user = await prisma_1.default.user.findFirst({
+            where: {
+                email: {
+                    equals: normalizedEmail,
+                    mode: 'insensitive',
+                },
+            },
             include: { profile: true, wallet: true },
         });
         if (!user) {
