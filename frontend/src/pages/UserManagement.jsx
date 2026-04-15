@@ -539,6 +539,7 @@ export default function UserManagement() {
                 <th>Hierarchy</th>
                 <th>Balance</th>
                 <th>Status</th>
+                <th>KYC</th>
                 <th>Joined</th>
                 <th>Actions</th>
               </tr>
@@ -594,6 +595,11 @@ export default function UserManagement() {
                       </span>
                     </td>
                     <td>
+                      <span className={`badge ${managedUser.kycStatus === 'VERIFIED' ? 'badge-success' : managedUser.kycStatus === 'REJECTED' ? 'badge-danger' : 'badge-warning'}`}>
+                        {managedUser.kycStatus}
+                      </span>
+                    </td>
+                    <td>
                       <span className="text-xs text-gray-500">
                         {new Date(managedUser.createdAt).toLocaleDateString()}
                       </span>
@@ -614,7 +620,8 @@ export default function UserManagement() {
 
                           {openMenuId === managedUser.id && (
                             <div
-                              className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10"
+                              className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden animate-fade-in"
+                              style={{ minWidth: '160px' }}
                               onClick={(e) => e.stopPropagation()}
                             >
                               <button
@@ -623,9 +630,9 @@ export default function UserManagement() {
                                   setIsEditModalOpen(true);
                                   setOpenMenuId(null);
                                 }}
-                                className="w-full text-left px-4 py-2.5 hover:bg-blue-50 text-blue-600 flex items-center gap-2 border-b border-gray-100 text-sm"
+                                className="w-full text-left px-4 py-3 hover:bg-blue-50 text-blue-600 flex items-center gap-3 border-b border-gray-50 text-sm font-medium whitespace-nowrap transition-colors"
                               >
-                                <Edit2 size={14} /> Edit User
+                                <Edit2 size={16} /> Edit User
                               </button>
 
                               {canImpersonate && (
@@ -634,9 +641,9 @@ export default function UserManagement() {
                                     loginAsUser(managedUser.id, managedUser.email);
                                     setOpenMenuId(null);
                                   }}
-                                  className="w-full text-left px-4 py-2.5 hover:bg-purple-50 text-purple-600 flex items-center gap-2 border-b border-gray-100 text-sm"
+                                  className="w-full text-left px-4 py-3 hover:bg-indigo-50 text-indigo-600 flex items-center gap-3 border-b border-gray-50 text-sm font-medium whitespace-nowrap transition-colors"
                                 >
-                                  <LogIn size={14} /> Login As
+                                  <LogIn size={16} /> Login As
                                 </button>
                               )}
 
@@ -645,10 +652,11 @@ export default function UserManagement() {
                                   toggleStatus(managedUser.id, managedUser.isActive);
                                   setOpenMenuId(null);
                                 }}
-                                className={`w-full text-left px-4 py-2.5 flex items-center gap-2 text-sm ${
-                                  canDeleteUsers ? 'border-b border-gray-100' : ''
-                                } ${managedUser.isActive ? 'hover:bg-red-50 text-red-600' : 'hover:bg-emerald-50 text-emerald-600'}`}
+                                className={`w-full text-left px-4 py-3 flex items-center gap-3 text-sm font-medium whitespace-nowrap transition-colors ${
+                                  canDeleteUsers ? 'border-b border-gray-50' : ''
+                                } ${managedUser.isActive ? 'hover:bg-amber-50 text-amber-600' : 'hover:bg-emerald-50 text-emerald-600'}`}
                               >
+                                {managedUser.isActive ? <X size={16} /> : <CheckCircle2 size={16} />}
                                 {managedUser.isActive ? 'Disable' : 'Enable'}
                               </button>
 
@@ -658,9 +666,9 @@ export default function UserManagement() {
                                     deleteUser(managedUser.id, managedUser.profile?.ownerName || managedUser.email);
                                     setOpenMenuId(null);
                                   }}
-                                  className="w-full text-left px-4 py-2.5 hover:bg-red-50 text-red-600 flex items-center gap-2 text-sm"
+                                  className="w-full text-left px-4 py-3 hover:bg-red-50 text-red-600 flex items-center gap-3 text-sm font-medium whitespace-nowrap transition-colors"
                                 >
-                                  <Trash2 size={14} /> Delete
+                                  <Trash2 size={16} /> Delete
                                 </button>
                               )}
                             </div>

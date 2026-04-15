@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateProfile = exports.deleteUser = exports.updateUser = exports.toggleUserStatus = exports.getUserById = exports.getUsers = exports.createUser = void 0;
+exports.updateKycStatus = exports.updateProfile = exports.deleteUser = exports.updateUser = exports.toggleUserStatus = exports.getUserById = exports.getUsers = exports.createUser = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const userHierarchy_service_1 = require("../services/userHierarchy.service");
@@ -275,3 +275,22 @@ const updateProfile = async (req, res) => {
     }
 };
 exports.updateProfile = updateProfile;
+const updateKycStatus = async (req, res) => {
+    const { status } = req.body;
+    const targetUserId = req.params.id;
+    if (req.user.role !== 'ADMIN') {
+        res.status(403).json({ success: false, message: 'Only admins can update KYC status' });
+        return;
+    }
+    try {
+        const updated = await prisma_1.default.user.update({
+            where: { id: targetUserId },
+            data: { kycStatus: status },
+        });
+        res.json({ success: true, kycStatus: updated.kycStatus });
+    }
+    catch (err) {
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+exports.updateKycStatus = updateKycStatus;

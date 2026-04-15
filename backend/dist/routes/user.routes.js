@@ -31,5 +31,6 @@ router.post('/:id/login-as', (0, auth_1.authorize)('ADMIN'), (req, res) => {
     req.body = { ...req.body, userId: req.params.id };
     (0, auth_controller_1.loginAs)(req, res);
 });
+router.patch('/:id/kyc', (0, auth_1.authorize)('ADMIN'), user_controller_1.updateKycStatus);
 router.delete('/:id', (0, auth_1.authorize)('ADMIN'), user_controller_1.deleteUser);
 exports.default = router;

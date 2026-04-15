@@ -138,6 +138,14 @@ const submitFundRequest = async (req, res) => {
     const { amount, bankRef, paymentDate, paymentMode, remark, bankAccountId } = req.body;
     const receiptFile = req.file;
     try {
+        const user = await prisma_1.default.user.findUnique({ where: { id: req.user.id } });
+        if (!user || user.kycStatus !== 'VERIFIED') {
+            res.status(403).json({
+                success: false,
+                message: 'KYC not verified. Please contact admin to verify your documents.',
+            });
+            return;
+        }
         if (!bankAccountId) {
             res.status(400).json({ success: false, message: 'Please select a company bank account' });
             return;
