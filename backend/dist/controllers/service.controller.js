@@ -5,54 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getServiceRequests = exports.submitPayout = exports.verifyBank = exports.rejectFundRequest = exports.approveFundRequest = exports.submitFundRequest = void 0;
 const prisma_1 = __importDefault(require("../lib/prisma"));
-// Helper: get applicable commission for a role and amount
-async function getCharge(userId, serviceType, amount) {
-    // Check user-specific override first
-    const override = await prisma_1.default.userCommissionSetup.findFirst({
-        where: { targetUserId: userId, serviceType, isActive: true },
-    });
-    if (override) {
-        const min = override.minAmount ? Number(override.minAmount) : 0;
-        const max = override.maxAmount ? Number(override.maxAmount) : Infinity;
-        if (amount >= min && amount <= max) {
-            return override.commissionType === 'PERCENTAGE'
-                ? (amount * Number(override.commissionValue)) / 100
-                : Number(override.commissionValue);
-        }
-    }
-    // Fall back to global slab
-    const slab = await prisma_1.default.commissionSlab.findFirst({
-        where: {
-            serviceType,
-            isActive: true,
-            OR: [
-                {
-                    minAmount: null,
-                    maxAmount: null,
-                },
-                {
-                    minAmount: null,
-                    maxAmount: { gte: amount },
-                },
-                {
-                    minAmount: { lte: amount },
-                    maxAmount: null,
-                },
-                {
-                    minAmount: { lte: amount },
-                    maxAmount: { gte: amount },
-                },
-            ],
-        },
-        orderBy: [{ minAmount: 'desc' }, { maxAmount: 'asc' }],
-    });
-    if (slab) {
-        return slab.commissionType === 'PERCENTAGE'
-            ? (amount * Number(slab.commissionValue)) / 100
-            : Number(slab.commissionValue);
-    }
-    return 0;
-}
+const commission_service_1 = require("../services/commission.service");
 // Helper: distribute commission up the chain
 async function distributeCommissions(userId, serviceType, amount) {
     let currentId = userId;
@@ -65,7 +18,7 @@ async function distributeCommissions(userId, serviceType, amount) {
         if (!currentUser || !currentUser.parentId)
             break;
         const parentId = currentUser.parentId;
-        const commission = await getCharge(parentId, serviceType, amount);
+        const commission = await (0, commission_service_1.resolveCharge)(currentId, serviceType, amount);
         if (commission > 0) {
             const updatedWallet = await prisma_1.default.wallet.upsert({
                 where: { userId: parentId },
@@ -160,7 +113,7 @@ const verifyBank = async (req, res) => {
     const { bankName, accountName, accountNumber, ifscCode } = req.body;
     const userId = req.user.id;
     try {
-        const charge = await getCharge(userId, 'BANK_VERIFICATION', 0);
+        const charge = await (0, commission_service_1.resolveCharge)(userId, 'BANK_VERIFICATION', 0);
         const wallet = await prisma_1.default.wallet.findUnique({ where: { userId } });
         if (!wallet || Number(wallet.balance) < charge) {
             res.status(400).json({ success: false, message: `Insufficient balance. Charge: ₹${charge}` });
@@ -194,7 +147,7 @@ const submitPayout = async (req, res) => {
     const { amount, bankName, accountName, accountNumber, ifscCode, remark } = req.body;
     const userId = req.user.id;
     try {
-        const charge = await getCharge(userId, 'PAYOUT', amount);
+        const charge = await (0, commission_service_1.resolveCharge)(userId, 'PAYOUT', amount);
         const total = amount + charge;
         const wallet = await prisma_1.default.wallet.findUnique({ where: { userId } });
         if (!wallet || Number(wallet.balance) < total) {

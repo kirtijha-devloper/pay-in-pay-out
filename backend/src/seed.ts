@@ -106,18 +106,25 @@ async function main() {
   }
 
   // Default commission slabs
-  await prisma.commissionSlab.createMany({
-    skipDuplicates: true,
-    data: [
-      { serviceType: 'PAYOUT', applyOnRole: 'SUPER', commissionType: 'FLAT', commissionValue: 5, minAmount: 100, maxAmount: 5000 },
-      { serviceType: 'PAYOUT', applyOnRole: 'SUPER', commissionType: 'FLAT', commissionValue: 15, minAmount: 5001, maxAmount: 25000 },
-      { serviceType: 'PAYOUT', applyOnRole: 'SUPER', commissionType: 'FLAT', commissionValue: 25, minAmount: 25001, maxAmount: 50000 },
-      { serviceType: 'PAYOUT', applyOnRole: 'SUPER', commissionType: 'FLAT', commissionValue: 40, minAmount: 50001, maxAmount: 100000 },
-      { serviceType: 'BANK_VERIFICATION', applyOnRole: 'SUPER', commissionType: 'FLAT', commissionValue: 10 },
-      { serviceType: 'FUND_REQUEST', applyOnRole: 'SUPER', commissionType: 'FLAT', commissionValue: 5, minAmount: 100, maxAmount: 5000 },
-      { serviceType: 'FUND_REQUEST', applyOnRole: 'SUPER', commissionType: 'FLAT', commissionValue: 15, minAmount: 5001, maxAmount: 25000 },
-    ],
+  const existingAdminSlabs = await prisma.commissionSlab.count({
+    where: { setById: admin.id },
   });
+
+  if (existingAdminSlabs === 0) {
+    await prisma.commissionSlab.createMany({
+      data: [
+        { setById: admin.id, serviceType: 'PAYOUT', applyOnRole: 'SUPER', commissionType: 'FLAT', commissionValue: 5, minAmount: 100, maxAmount: 5000 },
+        { setById: admin.id, serviceType: 'PAYOUT', applyOnRole: 'SUPER', commissionType: 'FLAT', commissionValue: 15, minAmount: 5001, maxAmount: 25000 },
+        { setById: admin.id, serviceType: 'PAYOUT', applyOnRole: 'SUPER', commissionType: 'FLAT', commissionValue: 25, minAmount: 25001, maxAmount: 50000 },
+        { setById: admin.id, serviceType: 'PAYOUT', applyOnRole: 'SUPER', commissionType: 'FLAT', commissionValue: 40, minAmount: 50001, maxAmount: 100000 },
+        { setById: admin.id, serviceType: 'BANK_VERIFICATION', applyOnRole: 'SUPER', commissionType: 'FLAT', commissionValue: 10, minAmount: 0, maxAmount: null },
+        { setById: admin.id, serviceType: 'BANK_VERIFICATION', applyOnRole: 'DISTRIBUTOR', commissionType: 'FLAT', commissionValue: 10, minAmount: 0, maxAmount: null },
+        { setById: admin.id, serviceType: 'BANK_VERIFICATION', applyOnRole: 'RETAILER', commissionType: 'FLAT', commissionValue: 10, minAmount: 0, maxAmount: null },
+        { setById: admin.id, serviceType: 'FUND_REQUEST', applyOnRole: 'SUPER', commissionType: 'FLAT', commissionValue: 5, minAmount: 100, maxAmount: 5000 },
+        { setById: admin.id, serviceType: 'FUND_REQUEST', applyOnRole: 'SUPER', commissionType: 'FLAT', commissionValue: 15, minAmount: 5001, maxAmount: 25000 },
+      ],
+    });
+  }
 
   console.log(`✅ Admin created: admin@abheepay.com / admin123`);
   console.log(`✅ 5 mocked users created (password: admin123)`);

@@ -41,6 +41,7 @@ model User {
   transactionsSent WalletTransaction[] @relation("Sender")
   transactionsRecv WalletTransaction[] @relation("Receiver")
   
+  defaultSlabsSet  CommissionSlab[]      @relation("DefaultCommissionSetBy")
   overridesSet     UserCommissionSetup[] @relation("SetBy")
   overridesRecv    UserCommissionSetup[] @relation("Target")
 }
@@ -89,13 +90,19 @@ model WalletTransaction {
 
 model CommissionSlab {
   id              String   @id @default(uuid())
+  setBy           User     @relation("DefaultCommissionSetBy", fields: [setById], references: [id])
+  setById         String
   serviceType     String   // PAYOUT, ADD_FUND, TRANSACTION
   applyOnRole     Role
   commissionType  String   // FLAT, PERCENTAGE
   commissionValue Decimal  @default(0.00) @db.Decimal(15, 2)
-  minAmount       Decimal? @db.Decimal(15, 2)
+  minAmount       Decimal  @default(0.00) @db.Decimal(15, 2)
   maxAmount       Decimal? @db.Decimal(15, 2)
   isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([setById, serviceType, applyOnRole, isActive])
 }
 
 model UserCommissionSetup {
@@ -107,11 +114,13 @@ model UserCommissionSetup {
   serviceType     String
   commissionType  String   // FLAT, PERCENTAGE
   commissionValue Decimal  @default(0.00) @db.Decimal(15, 2)
-  minAmount       Decimal? @db.Decimal(15, 2)
+  minAmount       Decimal  @default(0.00) @db.Decimal(15, 2)
   maxAmount       Decimal? @db.Decimal(15, 2)
   isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  @@unique([setById, targetUserId, serviceType])
+  @@index([setById, targetUserId, serviceType, isActive])
 }
 
 model ServiceRequest {
