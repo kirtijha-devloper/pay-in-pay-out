@@ -40,6 +40,9 @@ router.patch('/bank-accounts/:id/toggle', (0, auth_1.authorize)('ADMIN'), servic
 router.post('/fund-request', (0, auth_1.authorize)('SUPER', 'DISTRIBUTOR', 'RETAILER'), upload.single('receipt'), service_controller_1.submitFundRequest);
 router.patch('/fund-request/:id/approve', (0, auth_1.authorize)('ADMIN', 'SUPER'), service_controller_1.approveFundRequest);
 router.patch('/fund-request/:id/reject', (0, auth_1.authorize)('ADMIN', 'SUPER'), service_controller_1.rejectFundRequest);
-router.post('/bank-verify', service_controller_1.verifyBank);
+router.get('/bank-verify/fee', service_controller_1.getBankVerificationFee);
+router.patch('/bank-verify/fee', (0, auth_1.authorize)('ADMIN'), service_controller_1.updateBankVerificationFee);
+router.get('/bank-verify/beneficiaries', service_controller_1.getVerifiedBankBeneficiaries);
+router.post('/bank-verify', service_controller_1.verifyBankCached);
 router.post('/payout', service_controller_1.submitPayout);
 exports.default = router;

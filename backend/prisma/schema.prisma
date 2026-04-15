@@ -44,6 +44,7 @@ model User {
   rejectedServiceRequests ServiceRequest[] @relation("ServiceRequestRejectedBy")
   companyBankAccountsCreated CompanyBankAccount[] @relation("CompanyBankAccountCreatedBy")
   companyBankAccountsUpdated CompanyBankAccount[] @relation("CompanyBankAccountUpdatedBy")
+  payoutBeneficiaries PayoutBeneficiary[]
   
   defaultSlabsSet  CommissionSlab[]      @relation("DefaultCommissionSetBy")
   overridesSet     UserCommissionSetup[] @relation("SetBy")
@@ -109,6 +110,33 @@ model CompanyBankAccount {
   updatedById    String?
 
   serviceRequests ServiceRequest[]
+}
+
+model BankVerificationFee {
+  id          String   @id @default("BANK_VERIFICATION")
+  amount      Decimal  @default(0.00) @db.Decimal(15, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PayoutBeneficiary {
+  id              String   @id @default(uuid())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  payeeName       String   @map("payee_name")
+  accountNo       String   @map("account_no")
+  bankIfsc        String   @map("bank_ifsc")
+  bankName        String   @map("bank_name")
+  isVerified      Boolean  @default(false) @map("is_verified")
+  verifiedAt      DateTime? @map("verified_at")
+  providerRef     String?  @map("provider_ref")
+  providerStatusCode String? @map("provider_status_code")
+  providerResponse String?  @map("provider_response")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, accountNo, bankIfsc])
+  @@map("payout_beneficiaries")
 }
 
 model CommissionSlab {

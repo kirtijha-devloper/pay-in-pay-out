@@ -3,6 +3,12 @@ import { Response } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
 import { buildChargeDistribution, resolveCharge } from '../services/commission.service';
+import {
+  getBankVerificationFee as readBankVerificationFee,
+  listSavedBeneficiaries,
+  updateBankVerificationFee as saveBankVerificationFee,
+  verifyBankBeneficiary,
+} from '../services/bankVerification.service';
 
 function toNumberAmount(value: Prisma.Decimal | string | number | null | undefined) {
   return Number(value || 0);
@@ -279,6 +285,62 @@ export const rejectFundRequest = async (req: AuthRequest, res: Response) => {
     res.json({ success: true, message: 'Fund request rejected' });
   } catch {
     res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const getBankVerificationFee = async (_req: AuthRequest, res: Response) => {
+  try {
+    const fee = await readBankVerificationFee();
+    res.json({ success: true, fee });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const updateBankVerificationFee = async (req: AuthRequest, res: Response) => {
+  try {
+    const amount = req.body?.amount;
+    if (amount === undefined || amount === null || amount === '') {
+      res.status(400).json({ success: false, message: 'Fee amount is required' });
+      return;
+    }
+
+    const normalized = Number(amount);
+    if (Number.isNaN(normalized) || normalized < 0) {
+      res.status(400).json({ success: false, message: 'Fee amount must be a valid number' });
+      return;
+    }
+
+    const fee = await saveBankVerificationFee(normalized);
+    res.json({ success: true, fee });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const getVerifiedBankBeneficiaries = async (req: AuthRequest, res: Response) => {
+  try {
+    const beneficiaries = await listSavedBeneficiaries(req.user!.id);
+    res.json({ success: true, beneficiaries });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const verifyBankCached = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await verifyBankBeneficiary(req.user!.id, req.body);
+    res.json(result);
+  } catch (err) {
+    const statusCode = (err as any)?.statusCode || 500;
+    console.error(err);
+    res.status(statusCode).json({
+      success: false,
+      message: err instanceof Error ? err.message : 'Server error',
+    });
   }
 };
 

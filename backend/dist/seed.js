@@ -114,14 +114,21 @@ async function main() {
                 { setById: admin.id, serviceType: 'PAYOUT', applyOnRole: 'SUPER', commissionType: 'FLAT', commissionValue: 15, minAmount: 5001, maxAmount: 25000 },
                 { setById: admin.id, serviceType: 'PAYOUT', applyOnRole: 'SUPER', commissionType: 'FLAT', commissionValue: 25, minAmount: 25001, maxAmount: 50000 },
                 { setById: admin.id, serviceType: 'PAYOUT', applyOnRole: 'SUPER', commissionType: 'FLAT', commissionValue: 40, minAmount: 50001, maxAmount: 100000 },
-                { setById: admin.id, serviceType: 'BANK_VERIFICATION', applyOnRole: 'SUPER', commissionType: 'FLAT', commissionValue: 10, minAmount: 0, maxAmount: null },
-                { setById: admin.id, serviceType: 'BANK_VERIFICATION', applyOnRole: 'DISTRIBUTOR', commissionType: 'FLAT', commissionValue: 10, minAmount: 0, maxAmount: null },
-                { setById: admin.id, serviceType: 'BANK_VERIFICATION', applyOnRole: 'RETAILER', commissionType: 'FLAT', commissionValue: 10, minAmount: 0, maxAmount: null },
                 { setById: admin.id, serviceType: 'FUND_REQUEST', applyOnRole: 'SUPER', commissionType: 'FLAT', commissionValue: 5, minAmount: 100, maxAmount: 5000 },
                 { setById: admin.id, serviceType: 'FUND_REQUEST', applyOnRole: 'SUPER', commissionType: 'FLAT', commissionValue: 15, minAmount: 5001, maxAmount: 25000 },
             ],
         });
     }
+    await prisma.bankVerificationFee.upsert({
+        where: { id: 'BANK_VERIFICATION' },
+        create: {
+            id: 'BANK_VERIFICATION',
+            amount: 10,
+        },
+        update: {
+            amount: 10,
+        },
+    });
     const existingBankAccounts = await prisma.companyBankAccount.count();
     if (existingBankAccounts === 0) {
         await prisma.companyBankAccount.create({

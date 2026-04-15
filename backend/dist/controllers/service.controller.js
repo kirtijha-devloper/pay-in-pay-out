@@ -3,10 +3,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getServiceRequests = exports.submitPayout = exports.verifyBank = exports.rejectFundRequest = exports.approveFundRequest = exports.submitFundRequest = exports.toggleCompanyBankAccount = exports.upsertCompanyBankAccount = exports.getCompanyBankAccounts = void 0;
+exports.getServiceRequests = exports.submitPayout = exports.verifyBank = exports.verifyBankCached = exports.getVerifiedBankBeneficiaries = exports.updateBankVerificationFee = exports.getBankVerificationFee = exports.rejectFundRequest = exports.approveFundRequest = exports.submitFundRequest = exports.toggleCompanyBankAccount = exports.upsertCompanyBankAccount = exports.getCompanyBankAccounts = void 0;
 const client_1 = require("@prisma/client");
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const commission_service_1 = require("../services/commission.service");
+const bankVerification_service_1 = require("../services/bankVerification.service");
 function toNumberAmount(value) {
     return Number(value || 0);
 }
@@ -240,6 +241,64 @@ const rejectFundRequest = async (req, res) => {
     }
 };
 exports.rejectFundRequest = rejectFundRequest;
+const getBankVerificationFee = async (_req, res) => {
+    try {
+        const fee = await (0, bankVerification_service_1.getBankVerificationFee)();
+        res.json({ success: true, fee });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+exports.getBankVerificationFee = getBankVerificationFee;
+const updateBankVerificationFee = async (req, res) => {
+    try {
+        const amount = req.body?.amount;
+        if (amount === undefined || amount === null || amount === '') {
+            res.status(400).json({ success: false, message: 'Fee amount is required' });
+            return;
+        }
+        const normalized = Number(amount);
+        if (Number.isNaN(normalized) || normalized < 0) {
+            res.status(400).json({ success: false, message: 'Fee amount must be a valid number' });
+            return;
+        }
+        const fee = await (0, bankVerification_service_1.updateBankVerificationFee)(normalized);
+        res.json({ success: true, fee });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+exports.updateBankVerificationFee = updateBankVerificationFee;
+const getVerifiedBankBeneficiaries = async (req, res) => {
+    try {
+        const beneficiaries = await (0, bankVerification_service_1.listSavedBeneficiaries)(req.user.id);
+        res.json({ success: true, beneficiaries });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+exports.getVerifiedBankBeneficiaries = getVerifiedBankBeneficiaries;
+const verifyBankCached = async (req, res) => {
+    try {
+        const result = await (0, bankVerification_service_1.verifyBankBeneficiary)(req.user.id, req.body);
+        res.json(result);
+    }
+    catch (err) {
+        const statusCode = err?.statusCode || 500;
+        console.error(err);
+        res.status(statusCode).json({
+            success: false,
+            message: err instanceof Error ? err.message : 'Server error',
+        });
+    }
+};
+exports.verifyBankCached = verifyBankCached;
 const verifyBank = async (req, res) => {
     const { bankName, accountName, accountNumber, ifscCode } = req.body;
     const userId = req.user.id;
