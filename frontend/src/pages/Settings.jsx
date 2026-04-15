@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { User, Lock, Building, Save, CheckCircle2, AlertCircle } from 'lucide-react';
+import { User, Lock, Building, Save, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
@@ -19,6 +19,12 @@ export default function Settings() {
 
   const [passwordData, setPasswordData] = useState({
     oldPassword: '', newPassword: '', confirmPassword: ''
+  });
+
+  const [pinData, setPinData] = useState({
+    currentPin: '',
+    newPin: '',
+    confirmPin: '',
   });
 
   const [bankData, setBankData] = useState({
@@ -59,6 +65,27 @@ export default function Settings() {
     setLoading(false);
   };
 
+  const handlePinUpdate = async (e) => {
+    e.preventDefault();
+    if (pinData.newPin !== pinData.confirmPin) {
+      return setMessage({ type: 'error', text: 'Transaction PIN confirmation does not match' });
+    }
+
+    setLoading(true);
+    setMessage(null);
+    try {
+      const { data } = await api.patch('/auth/transaction-pin', pinData);
+      if (data.success) {
+        setMessage({ type: 'success', text: 'Transaction PIN updated successfully!' });
+        setPinData({ currentPin: '', newPin: '', confirmPin: '' });
+        await refreshUser();
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'PIN update failed' });
+    }
+    setLoading(false);
+  };
+
   return (
     <div className="flex-col gap-6">
       <div className="flex justify-between items-center mb-6">
@@ -82,6 +109,12 @@ export default function Settings() {
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === 'password' ? 'bg-primary text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             <Lock size={18} /> Change Password
+          </button>
+          <button
+            onClick={() => setActiveTab('pin')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === 'pin' ? 'bg-primary text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}
+          >
+            <ShieldCheck size={18} /> Transaction PIN
           </button>
           <button
             onClick={() => setActiveTab('bank')}
@@ -149,6 +182,52 @@ export default function Settings() {
               </div>
               <button type="submit" className="btn btn-primary px-8" disabled={loading}>
                 {loading ? 'Update Password' : 'Update Password'}
+              </button>
+            </form>
+          )}
+
+          {activeTab === 'pin' && (
+            <form onSubmit={handlePinUpdate} className="max-w-md space-y-6">
+              <h2 className="text-lg font-bold text-gray-900 border-b pb-2">Transaction PIN</h2>
+              <p className="text-sm text-gray-500">
+                This PIN is required for payout requests. Use 4 to 6 digits and keep it private.
+              </p>
+              <div className="space-y-4">
+                {user.transactionPinSet && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase text-gray-500">Current PIN</label>
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      required
+                      value={pinData.currentPin}
+                      onChange={(e) => setPinData({ ...pinData, currentPin: e.target.value })}
+                    />
+                  </div>
+                )}
+                <div className="space-y-1">
+                  <label className="text-xs font-bold uppercase text-gray-500">New PIN</label>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    required
+                    value={pinData.newPin}
+                    onChange={(e) => setPinData({ ...pinData, newPin: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold uppercase text-gray-500">Confirm PIN</label>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    required
+                    value={pinData.confirmPin}
+                    onChange={(e) => setPinData({ ...pinData, confirmPin: e.target.value })}
+                  />
+                </div>
+              </div>
+              <button type="submit" className="btn btn-primary px-8" disabled={loading}>
+                {loading ? 'Saving PIN...' : user.transactionPinSet ? 'Update PIN' : 'Set PIN'}
               </button>
             </form>
           )}

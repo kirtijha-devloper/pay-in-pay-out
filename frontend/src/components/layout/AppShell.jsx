@@ -32,6 +32,7 @@ export default function AppShell() {
     { name: 'Bank Verification', path: '/bank-verify', icon: Building2 },
     { name: 'Payout', path: '/payout', icon: Send },
     { name: 'Reports', path: '/reports', icon: FileText },
+    { name: 'Settings', path: '/settings', icon: Settings },
   ];
 
   if (['ADMIN', 'SUPER', 'DISTRIBUTOR'].includes(user.role)) {
