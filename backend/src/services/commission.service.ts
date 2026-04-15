@@ -64,6 +64,11 @@ export type EffectiveChargeSlab = {
   maxAmount: string | null;
 };
 
+export type ChargeDistributionEntry = {
+  receiverId: string;
+  amount: number;
+};
+
 export function toDecimalAmount(value: Prisma.Decimal | string | number) {
   return new Prisma.Decimal(value).toDecimalPlaces(2);
 }
@@ -516,6 +521,41 @@ export async function validateUserOverrideFloor(
     maxAmount,
     excludeOverrideId
   );
+}
+
+export async function buildChargeDistribution(
+  userId: string,
+  serviceType: string,
+  amountInput: Prisma.Decimal | string | number
+) {
+  const context = await loadHierarchyChain(userId);
+  if (!context) {
+    return [] as ChargeDistributionEntry[];
+  }
+
+  const amount = toDecimalAmount(amountInput);
+  const beneficiaries = [...context.ancestors].reverse();
+  if (beneficiaries.length === 0) {
+    return [] as ChargeDistributionEntry[];
+  }
+
+  const charges = await Promise.all(beneficiaries.map((node) => resolveCharge(node.id, serviceType, amount.toNumber())));
+  const shares: ChargeDistributionEntry[] = [];
+
+  for (let index = 0; index < beneficiaries.length; index += 1) {
+    const currentCharge = charges[index] ?? 0;
+    const previousCharge = index === 0 ? 0 : charges[index - 1] ?? 0;
+    const share = Math.max(currentCharge - previousCharge, 0);
+
+    if (share > 0) {
+      shares.push({
+        receiverId: beneficiaries[index].id,
+        amount: new Prisma.Decimal(share).toDecimalPlaces(2).toNumber(),
+      });
+    }
+  }
+
+  return shares;
 }
 
 export async function resolveCharge(userId: string, serviceType: string, amountInput: number) {

@@ -12,6 +12,7 @@ exports.isCommissionType = isCommissionType;
 exports.rangesOverlap = rangesOverlap;
 exports.validateDefaultRateFloor = validateDefaultRateFloor;
 exports.validateUserOverrideFloor = validateUserOverrideFloor;
+exports.buildChargeDistribution = buildChargeDistribution;
 exports.resolveCharge = resolveCharge;
 exports.buildEffectiveSlabs = buildEffectiveSlabs;
 const client_1 = require("@prisma/client");
@@ -291,6 +292,31 @@ async function validateDefaultRateFloor(actorId, applyOnRole, serviceType, commi
 }
 async function validateUserOverrideFloor(targetUserId, serviceType, commissionValueInput, minAmount, maxAmount, excludeOverrideId) {
     return validateOverrideRateFloorInternal(targetUserId, serviceType, commissionValueInput, minAmount, maxAmount, excludeOverrideId);
+}
+async function buildChargeDistribution(userId, serviceType, amountInput) {
+    const context = await loadHierarchyChain(userId);
+    if (!context) {
+        return [];
+    }
+    const amount = toDecimalAmount(amountInput);
+    const beneficiaries = [...context.ancestors].reverse();
+    if (beneficiaries.length === 0) {
+        return [];
+    }
+    const charges = await Promise.all(beneficiaries.map((node) => resolveCharge(node.id, serviceType, amount.toNumber())));
+    const shares = [];
+    for (let index = 0; index < beneficiaries.length; index += 1) {
+        const currentCharge = charges[index] ?? 0;
+        const previousCharge = index === 0 ? 0 : charges[index - 1] ?? 0;
+        const share = Math.max(currentCharge - previousCharge, 0);
+        if (share > 0) {
+            shares.push({
+                receiverId: beneficiaries[index].id,
+                amount: new client_1.Prisma.Decimal(share).toDecimalPlaces(2).toNumber(),
+            });
+        }
+    }
+    return shares;
 }
 async function resolveCharge(userId, serviceType, amountInput) {
     const context = await loadRateContext(userId, [serviceType]);

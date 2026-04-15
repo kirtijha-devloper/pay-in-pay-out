@@ -41,12 +41,14 @@ export const getLedger = async (req: AuthRequest, res: Response) => {
   const limit = (req.query.limit as string) || '20';
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const take = parseInt(limit);
-  const where: any = {
-    OR: [
-      { receiverId: req.user!.id },
-      { senderId: req.user!.id },
-    ],
-  };
+  const where: any = req.user!.role === 'ADMIN'
+    ? {}
+    : {
+        OR: [
+          { receiverId: req.user!.id },
+          { senderId: req.user!.id },
+        ],
+      };
   if (from || to) {
     where.createdAt = {};
     if (from) where.createdAt.gte = new Date(from as string);
@@ -59,7 +61,18 @@ export const getLedger = async (req: AuthRequest, res: Response) => {
         skip,
         take,
         orderBy: { createdAt: 'desc' },
-        include: { sender: { include: { profile: true } } },
+        include: {
+          sender: { include: { profile: true } },
+          receiver: { include: { profile: true } },
+          serviceRequest: {
+            include: {
+              companyBankAccount: true,
+              user: {
+                include: { profile: true },
+              },
+            },
+          },
+        },
       }),
       prisma.walletTransaction.count({ where }),
     ]);

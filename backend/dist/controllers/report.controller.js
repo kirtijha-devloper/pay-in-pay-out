@@ -44,12 +44,14 @@ const getLedger = async (req, res) => {
     const limit = req.query.limit || '20';
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
-    const where = {
-        OR: [
-            { receiverId: req.user.id },
-            { senderId: req.user.id },
-        ],
-    };
+    const where = req.user.role === 'ADMIN'
+        ? {}
+        : {
+            OR: [
+                { receiverId: req.user.id },
+                { senderId: req.user.id },
+            ],
+        };
     if (from || to) {
         where.createdAt = {};
         if (from)
@@ -64,7 +66,18 @@ const getLedger = async (req, res) => {
                 skip,
                 take,
                 orderBy: { createdAt: 'desc' },
-                include: { sender: { include: { profile: true } } },
+                include: {
+                    sender: { include: { profile: true } },
+                    receiver: { include: { profile: true } },
+                    serviceRequest: {
+                        include: {
+                            companyBankAccount: true,
+                            user: {
+                                include: { profile: true },
+                            },
+                        },
+                    },
+                },
             }),
             prisma_1.default.walletTransaction.count({ where }),
         ]);

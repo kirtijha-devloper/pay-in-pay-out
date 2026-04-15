@@ -40,6 +40,10 @@ model User {
   services         ServiceRequest[]
   transactionsSent WalletTransaction[] @relation("Sender")
   transactionsRecv WalletTransaction[] @relation("Receiver")
+  approvedServiceRequests ServiceRequest[] @relation("ServiceRequestApprovedBy")
+  rejectedServiceRequests ServiceRequest[] @relation("ServiceRequestRejectedBy")
+  companyBankAccountsCreated CompanyBankAccount[] @relation("CompanyBankAccountCreatedBy")
+  companyBankAccountsUpdated CompanyBankAccount[] @relation("CompanyBankAccountUpdatedBy")
   
   defaultSlabsSet  CommissionSlab[]      @relation("DefaultCommissionSetBy")
   overridesSet     UserCommissionSetup[] @relation("SetBy")
@@ -84,8 +88,27 @@ model WalletTransaction {
   receiver         User     @relation("Receiver", fields: [receiverId], references: [id])
   receiverId       String
   receiverBalAfter Decimal  @db.Decimal(15, 2)
+  serviceRequest   ServiceRequest? @relation("ServiceRequestWalletTransactions", fields: [serviceRequestId], references: [id], onDelete: SetNull)
+  serviceRequestId String?
 
   createdAt        DateTime @default(now())
+}
+
+model CompanyBankAccount {
+  id             String   @id @default(uuid())
+  bankName       String
+  accountNumber  String   @unique
+  ifscCode       String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  createdBy      User?    @relation("CompanyBankAccountCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdById    String?
+  updatedBy      User?    @relation("CompanyBankAccountUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  updatedById    String?
+
+  serviceRequests ServiceRequest[]
 }
 
 model CommissionSlab {
@@ -129,16 +152,29 @@ model ServiceRequest {
   userId           String
   serviceType      String   // BANK_VERIFICATION, FUND_REQUEST, PAYOUT
   amount           Decimal? @db.Decimal(15,2)
+  chargeAmount     Decimal? @db.Decimal(15,2)
+  creditedAmount   Decimal? @db.Decimal(15,2)
   bankRef          String?
   paymentDate      DateTime?
   paymentMode      String?
   remark           String?
+  receiptPath      String?
   
   // Bank details mapping
   bankName         String?
   accountName      String?
   accountNumber    String?
   ifscCode         String?
+  companyBankAccount CompanyBankAccount? @relation(fields: [companyBankAccountId], references: [id], onDelete: SetNull)
+  companyBankAccountId String?
+  approvedBy       User?    @relation("ServiceRequestApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedById     String?
+  approvedAt       DateTime?
+  rejectedBy       User?    @relation("ServiceRequestRejectedBy", fields: [rejectedById], references: [id], onDelete: SetNull)
+  rejectedById     String?
+  rejectedAt       DateTime?
+
+  walletTransactions WalletTransaction[] @relation("ServiceRequestWalletTransactions")
 
   status           RequestStatus @default(PENDING)
   createdAt        DateTime @default(now())

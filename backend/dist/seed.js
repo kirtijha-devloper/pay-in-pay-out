@@ -122,6 +122,19 @@ async function main() {
             ],
         });
     }
+    const existingBankAccounts = await prisma.companyBankAccount.count();
+    if (existingBankAccounts === 0) {
+        await prisma.companyBankAccount.create({
+            data: {
+                bankName: 'AbheePay Company Bank',
+                accountNumber: '999999999999',
+                ifscCode: 'ABCD0000001',
+                isActive: true,
+                createdById: admin.id,
+                updatedById: admin.id,
+            },
+        });
+    }
     console.log(`✅ Admin created: admin@abheepay.com / admin123`);
     console.log(`✅ 5 mocked users created (password: admin123)`);
     console.log(`  - super1@abheepay.com (SUPER)`);
