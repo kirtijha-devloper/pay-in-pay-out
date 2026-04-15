@@ -1,0 +1,89 @@
+import React, { useState } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { Shield, Lock, Mail } from 'lucide-react';
+import './Login.css';
+
+export default function Login() {
+  const { user, login } = useAuth();
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    
+    // Simulate slight delay for premium feel
+    await new Promise(r => setTimeout(r, 500));
+    
+    const res = await login(email, password);
+    if (res.success) {
+      navigate('/');
+    } else {
+      setError(res.message || 'Login failed');
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="login-wrapper">
+      <div className="login-card class-panel">
+        <div className="login-header">
+          <div className="login-logo">
+            <Shield size={32} color="var(--color-primary)" />
+          </div>
+          <h2>Welcome to AbheePay</h2>
+          <p className="text-muted text-sm">Enter your details to access your dashboard</p>
+        </div>
+
+        {error && (
+          <div className="login-error animate-fade-in">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="login-form">
+          <div className="input-group">
+            <label>Email Address</label>
+            <div className="input-with-icon">
+              <Mail size={18} className="input-icon" />
+              <input
+                type="email"
+                required
+                placeholder="admin@abheepay.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="input-group">
+            <label>Password</label>
+            <div className="input-with-icon">
+              <Lock size={18} className="input-icon" />
+              <input
+                type="password"
+                required
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <button type="submit" className="btn btn-primary login-submit" disabled={loading}>
+            {loading ? 'Authenticating...' : 'Sign In'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}

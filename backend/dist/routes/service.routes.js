@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const service_controller_1 = require("../controllers/service.controller");
+const auth_1 = require("../middleware/auth");
+const router = (0, express_1.Router)();
+router.use(auth_1.authenticate);
+router.get('/', service_controller_1.getServiceRequests);
+router.post('/fund-request', service_controller_1.submitFundRequest);
+router.patch('/fund-request/:id/approve', (0, auth_1.authorize)('ADMIN', 'SUPER'), service_controller_1.approveFundRequest);
+router.patch('/fund-request/:id/reject', (0, auth_1.authorize)('ADMIN', 'SUPER'), service_controller_1.rejectFundRequest);
+router.post('/bank-verify', service_controller_1.verifyBank);
+router.post('/payout', service_controller_1.submitPayout);
+exports.default = router;

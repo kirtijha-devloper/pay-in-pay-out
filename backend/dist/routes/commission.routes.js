@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const commission_controller_1 = require("../controllers/commission.controller");
+const auth_1 = require("../middleware/auth");
+const router = (0, express_1.Router)();
+router.use(auth_1.authenticate);
+router.get('/slabs', commission_controller_1.getSlabs);
+router.post('/slabs', (0, auth_1.authorize)('ADMIN'), commission_controller_1.upsertSlab);
+router.put('/slabs', (0, auth_1.authorize)('ADMIN'), commission_controller_1.upsertSlab);
+router.delete('/slabs/:id', (0, auth_1.authorize)('ADMIN'), commission_controller_1.deleteSlab);
+router.get('/overrides', commission_controller_1.getUserOverrides);
+router.post('/overrides', (0, auth_1.authorize)('ADMIN', 'SUPER', 'DISTRIBUTOR'), commission_controller_1.setUserOverride);
+exports.default = router;
