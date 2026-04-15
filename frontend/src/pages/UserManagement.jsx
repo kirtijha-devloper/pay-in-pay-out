@@ -1,36 +1,108 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { Search, Plus, Filter, RefreshCw, X, Upload, Edit2, Trash2, LogIn, MoreVertical } from 'lucide-react';
+import { Plus, Filter, RefreshCw, X, Edit2, Trash2, LogIn, MoreVertical } from 'lucide-react';
+
+const ROLE_OPTIONS = {
+  ADMIN: ['SUPER', 'DISTRIBUTOR', 'RETAILER'],
+  SUPER: ['DISTRIBUTOR', 'RETAILER'],
+  DISTRIBUTOR: ['RETAILER'],
+};
+
+const ROLE_LABELS = {
+  ADMIN: 'Admin',
+  SUPER: 'Super',
+  DISTRIBUTOR: 'Distributor',
+  RETAILER: 'Retailer',
+};
+
+const EMPTY_CREATE_FORM = {
+  email: '',
+  password: '',
+  role: 'RETAILER',
+  ownerName: '',
+  shopName: '',
+  mobileNumber: '',
+  fullAddress: '',
+  state: '',
+  pinCode: '',
+  aadhaarNumber: '',
+};
+
+const EMPTY_FILES = {
+  aadhaarFront: null,
+  aadhaarBack: null,
+  panCard: null,
+};
+
+const buildEditForm = (user) => ({
+  email: user?.email || '',
+  ownerName: user?.profile?.ownerName || '',
+  shopName: user?.profile?.shopName || '',
+  mobileNumber: user?.profile?.mobileNumber || '',
+  fullAddress: user?.profile?.fullAddress || '',
+  state: user?.profile?.state || '',
+  pinCode: user?.profile?.pinCode || '',
+  aadhaarNumber: user?.profile?.aadhaarNumber || '',
+});
+
+const getAvailableRoles = (role) => ROLE_OPTIONS[role] || [];
+
+const getDefaultRole = (role) => {
+  const roles = getAvailableRoles(role);
+  if (roles.includes('RETAILER')) return 'RETAILER';
+  return roles[0] || '';
+};
+
+const formatSummaryPrimary = (summary) => {
+  if (!summary) return '-';
+  return summary.ownerName || summary.shopName || summary.email;
+};
+
+const formatSummarySecondary = (summary) => {
+  if (!summary) return '';
+  return `${ROLE_LABELS[summary.role] || summary.role} • ${summary.email}`;
+};
+
+const HierarchyStack = ({ user }) => (
+  <div className="space-y-1 text-xs text-gray-500">
+    <div>
+      <span className="font-medium text-gray-700">Admin:</span> {formatSummaryPrimary(user?.upline?.admin)}
+    </div>
+    <div>
+      <span className="font-medium text-gray-700">Super:</span> {formatSummaryPrimary(user?.upline?.super)}
+    </div>
+    <div>
+      <span className="font-medium text-gray-700">Distributor:</span> {formatSummaryPrimary(user?.upline?.distributor)}
+    </div>
+  </div>
+);
 
 const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
-  const [formData, setFormData] = useState({
-    email: '', password: '', role: 'RETAILER',
-    ownerName: '', shopName: '', mobileNumber: '',
-    fullAddress: '', state: '', pinCode: '', aadhaarNumber: ''
-  });
+  const [formData, setFormData] = useState(EMPTY_CREATE_FORM);
+  const [files, setFiles] = useState(EMPTY_FILES);
 
-  const [files, setFiles] = useState({
-    aadhaarFront: null, aadhaarBack: null, panCard: null
-  });
+  const availableRoles = getAvailableRoles(user?.role);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setError('');
+    setLoading(false);
+    setFiles(EMPTY_FILES);
+    setFormData({
+      ...EMPTY_CREATE_FORM,
+      role: getDefaultRole(user?.role),
+    });
+  }, [isOpen, user?.role]);
 
   if (!isOpen) return null;
 
-  const getAvailableRoles = () => {
-    switch (user.role) {
-      case 'ADMIN': return ['SUPER', 'DISTRIBUTOR', 'RETAILER'];
-      case 'SUPER': return ['DISTRIBUTOR', 'RETAILER'];
-      case 'DISTRIBUTOR': return ['RETAILER'];
-      default: return [];
-    }
-  };
-
   const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
-  const handleFileChange = (e) => setFiles({ ...files, [e.target.name]: e.target.files[0] });
+  const handleFileChange = (e) => setFiles({ ...files, [e.target.name]: e.target.files?.[0] || null });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -38,15 +110,16 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
     setError('');
 
     const data = new FormData();
-    Object.keys(formData).forEach(key => data.append(key, formData[key]));
+    Object.entries(formData).forEach(([key, value]) => data.append(key, value));
     if (files.aadhaarFront) data.append('aadhaarFront', files.aadhaarFront);
     if (files.aadhaarBack) data.append('aadhaarBack', files.aadhaarBack);
     if (files.panCard) data.append('panCard', files.panCard);
 
     try {
       const res = await api.post('/users', data, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
+
       if (res.data.success) {
         onUserCreated();
         onClose();
@@ -56,6 +129,7 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
     } catch (err) {
       setError(err.response?.data?.message || 'Server error occurred');
     }
+
     setLoading(false);
   };
 
@@ -64,20 +138,25 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
       <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center z-10">
           <h2 className="text-xl font-semibold">Create New User</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
+            <X size={20} />
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>}
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Account Info */}
             <div className="space-y-4">
               <h3 className="font-medium text-gray-900 border-b pb-2">Account Details</h3>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-700 uppercase">Role</label>
                 <select name="role" required value={formData.role} onChange={handleInputChange} className="w-full">
-                  {getAvailableRoles().map(r => <option key={r} value={r}>{r}</option>)}
+                  {availableRoles.map((role) => (
+                    <option key={role} value={role}>
+                      {ROLE_LABELS[role] || role}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-1">
@@ -90,7 +169,6 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
               </div>
             </div>
 
-            {/* Profile Info */}
             <div className="space-y-4">
               <h3 className="font-medium text-gray-900 border-b pb-2">Profile Details</h3>
               <div className="space-y-1">
@@ -106,9 +184,8 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
                 <input type="tel" name="mobileNumber" required minLength="10" maxLength="10" value={formData.mobileNumber} onChange={handleInputChange} className="w-full" />
               </div>
             </div>
-            
-            {/* Address */}
-             <div className="space-y-4 md:col-span-2">
+
+            <div className="space-y-4 md:col-span-2">
               <h3 className="font-medium text-gray-900 border-b pb-2">Address Info</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
@@ -129,19 +206,19 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
             <div className="space-y-4 md:col-span-2">
               <h3 className="font-medium text-gray-900 border-b pb-2">KYC Documents</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <div className="space-y-1">
+                <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700 uppercase">Aadhaar Number</label>
                   <input type="text" name="aadhaarNumber" required value={formData.aadhaarNumber} onChange={handleInputChange} className="w-full" />
                 </div>
-                 <div className="space-y-1">
+                <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700 uppercase">Aadhaar Front Image</label>
                   <input type="file" name="aadhaarFront" accept="image/*" onChange={handleFileChange} className="w-full p-1" />
                 </div>
-                 <div className="space-y-1">
+                <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700 uppercase">Aadhaar Back Image</label>
                   <input type="file" name="aadhaarBack" accept="image/*" onChange={handleFileChange} className="w-full p-1" />
                 </div>
-                 <div className="space-y-1">
+                <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700 uppercase">PAN Card Image</label>
                   <input type="file" name="panCard" accept="image/*" onChange={handleFileChange} className="w-full p-1" />
                 </div>
@@ -150,8 +227,10 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
           </div>
 
           <div className="pt-4 border-t border-gray-200 flex justify-end gap-3">
-            <button type="button" onClick={onClose} className="btn btn-outline" disabled={loading}>Cancel</button>
-            <button type="submit" className="btn btn-primary min-w-[120px]" disabled={loading}>
+            <button type="button" onClick={onClose} className="btn btn-outline" disabled={loading}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary min-w-[120px]" disabled={loading || availableRoles.length === 0}>
               {loading ? 'Creating...' : 'Create User'}
             </button>
           </div>
@@ -161,21 +240,17 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
   );
 };
 
-
 const EditUserModal = ({ isOpen, onClose, user, onUserUpdated }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
-  const [formData, setFormData] = useState({
-    email: user?.email || '',
-    ownerName: user?.profile?.ownerName || '',
-    shopName: user?.profile?.shopName || '',
-    mobileNumber: user?.profile?.mobileNumber || '',
-    fullAddress: user?.profile?.fullAddress || '',
-    state: user?.profile?.state || '',
-    pinCode: user?.profile?.pinCode || '',
-    aadhaarNumber: user?.profile?.aadhaarNumber || ''
-  });
+  const [formData, setFormData] = useState(buildEditForm(user));
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setError('');
+    setLoading(false);
+    setFormData(buildEditForm(user));
+  }, [isOpen, user]);
 
   if (!isOpen || !user) return null;
 
@@ -197,6 +272,7 @@ const EditUserModal = ({ isOpen, onClose, user, onUserUpdated }) => {
     } catch (err) {
       setError(err.response?.data?.message || 'Server error occurred');
     }
+
     setLoading(false);
   };
 
@@ -205,14 +281,27 @@ const EditUserModal = ({ isOpen, onClose, user, onUserUpdated }) => {
       <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center z-10">
           <h2 className="text-xl font-semibold">Edit User</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
+            <X size={20} />
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>}
-          
+
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <div className="text-xs uppercase text-gray-500 mb-1">Added By</div>
+              <div className="font-medium text-gray-900">{formatSummaryPrimary(user.createdBy)}</div>
+              <div className="text-xs text-gray-500">{formatSummarySecondary(user.createdBy) || '-'}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase text-gray-500 mb-1">Hierarchy</div>
+              <HierarchyStack user={user} />
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Account Info */}
             <div className="space-y-4">
               <h3 className="font-medium text-gray-900 border-b pb-2">Account Details</h3>
               <div className="space-y-1">
@@ -221,7 +310,6 @@ const EditUserModal = ({ isOpen, onClose, user, onUserUpdated }) => {
               </div>
             </div>
 
-            {/* Profile Info */}
             <div className="space-y-4">
               <h3 className="font-medium text-gray-900 border-b pb-2">Profile Details</h3>
               <div className="space-y-1">
@@ -244,8 +332,7 @@ const EditUserModal = ({ isOpen, onClose, user, onUserUpdated }) => {
               <label className="text-xs font-medium text-gray-700 uppercase">Aadhaar Number</label>
               <input type="text" name="aadhaarNumber" required value={formData.aadhaarNumber} onChange={handleInputChange} className="w-full" />
             </div>
-            
-            {/* Address */}
+
             <div className="space-y-4 md:col-span-2">
               <h3 className="font-medium text-gray-900 border-b pb-2">Address Info</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -266,7 +353,9 @@ const EditUserModal = ({ isOpen, onClose, user, onUserUpdated }) => {
           </div>
 
           <div className="pt-4 border-t border-gray-200 flex justify-end gap-3">
-            <button type="button" onClick={onClose} className="btn btn-outline" disabled={loading}>Cancel</button>
+            <button type="button" onClick={onClose} className="btn btn-outline" disabled={loading}>
+              Cancel
+            </button>
             <button type="submit" className="btn btn-primary min-w-[120px]" disabled={loading}>
               {loading ? 'Updating...' : 'Update User'}
             </button>
@@ -285,16 +374,20 @@ export default function UserManagement() {
   const [filterStatus, setFilterStatus] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
 
+  const canManageUsers = ['ADMIN', 'SUPER', 'DISTRIBUTOR'].includes(user.role);
+  const canDeleteUsers = user.role === 'ADMIN';
+  const canImpersonate = user.role === 'ADMIN';
+  const filterRoles = getAvailableRoles(user.role);
+
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page, limit: 10 });
+      const params = new URLSearchParams({ page: String(page), limit: '10' });
       if (filterRole) params.append('role', filterRole);
       if (filterStatus) params.append('status', filterStatus);
 
@@ -315,11 +408,11 @@ export default function UserManagement() {
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      // Check if click is not on the menu or button
       if (!e.target.closest('[data-menu-container]')) {
         setOpenMenuId(null);
       }
     };
+
     if (openMenuId) {
       document.addEventListener('click', handleClickOutside);
       return () => document.removeEventListener('click', handleClickOutside);
@@ -328,18 +421,20 @@ export default function UserManagement() {
 
   const toggleStatus = async (userId, currentStatus) => {
     if (!window.confirm(`Are you sure you want to ${currentStatus ? 'disable' : 'enable'} this user?`)) return;
+
     try {
       const { data } = await api.patch(`/users/${userId}/toggle`);
       if (data.success) {
         fetchUsers();
       }
     } catch (err) {
-      alert('Failed to update status');
+      alert(err.response?.data?.message || 'Failed to update status');
     }
   };
 
   const deleteUser = async (userId, userName) => {
     if (!window.confirm(`Are you sure you want to delete ${userName}? This action cannot be undone.`)) return;
+
     try {
       const { data } = await api.delete(`/users/${userId}`);
       if (data.success) {
@@ -353,6 +448,7 @@ export default function UserManagement() {
 
   const loginAsUser = async (userId, userEmail) => {
     if (!window.confirm(`Login as ${userEmail}?`)) return;
+
     try {
       const { data } = await api.post(`/users/${userId}/login-as`);
       if (data.success && data.token) {
@@ -368,12 +464,17 @@ export default function UserManagement() {
   };
 
   const getRoleBadgeClass = (role) => {
-    switch(role) {
-      case 'ADMIN': return 'badge-primary bg-blue-100 text-blue-800';
-      case 'SUPER': return 'badge-success bg-emerald-100 text-emerald-800';
-      case 'DISTRIBUTOR': return 'bg-purple-100 text-purple-800 badge';
-      case 'RETAILER': return 'badge bg-gray-100 text-gray-800';
-      default: return 'badge bg-gray-100';
+    switch (role) {
+      case 'ADMIN':
+        return 'badge-primary bg-blue-100 text-blue-800';
+      case 'SUPER':
+        return 'badge-success bg-emerald-100 text-emerald-800';
+      case 'DISTRIBUTOR':
+        return 'bg-purple-100 text-purple-800 badge';
+      case 'RETAILER':
+        return 'badge bg-gray-100 text-gray-800';
+      default:
+        return 'badge bg-gray-100';
     }
   };
 
@@ -382,25 +483,42 @@ export default function UserManagement() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold">User Management</h1>
-          <p className="text-muted text-sm mt-1">Manage your downline hierarchy and retail network.</p>
+          <p className="text-muted text-sm mt-1">Manage your full downline hierarchy and who added each user.</p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="btn btn-primary">
-          <Plus size={18} /> New User
-        </button>
+        {canManageUsers && (
+          <button onClick={() => setIsModalOpen(true)} className="btn btn-primary">
+            <Plus size={18} /> New User
+          </button>
+        )}
       </div>
 
       <div className="card">
-        {/* Filters */}
         <div className="p-4 border-b border-gray-100 flex flex-wrap gap-4 items-center bg-gray-50/50">
           <div className="flex items-center gap-2">
             <Filter size={18} className="text-gray-400" />
-            <select value={filterRole} onChange={e => {setFilterRole(e.target.value); setPage(1);}} className="py-1.5 px-3">
+            <select
+              value={filterRole}
+              onChange={(e) => {
+                setFilterRole(e.target.value);
+                setPage(1);
+              }}
+              className="py-1.5 px-3"
+            >
               <option value="">All Roles</option>
-              {user.role === 'ADMIN' && <option value="SUPER">Super Distributors</option>}
-              {['ADMIN', 'SUPER'].includes(user.role) && <option value="DISTRIBUTOR">Distributors</option>}
-              <option value="RETAILER">Retailers</option>
+              {filterRoles.map((role) => (
+                <option key={role} value={role}>
+                  {ROLE_LABELS[role] || role}
+                </option>
+              ))}
             </select>
-            <select value={filterStatus} onChange={e => {setFilterStatus(e.target.value); setPage(1);}} className="py-1.5 px-3">
+            <select
+              value={filterStatus}
+              onChange={(e) => {
+                setFilterStatus(e.target.value);
+                setPage(1);
+              }}
+              className="py-1.5 px-3"
+            >
               <option value="">All Statuses</option>
               <option value="active">Active Only</option>
               <option value="inactive">Inactive Only</option>
@@ -411,7 +529,6 @@ export default function UserManagement() {
           </button>
         </div>
 
-        {/* Table */}
         <div className="data-table-container border-none shadow-none rounded-none">
           <table className="data-table">
             <thead>
@@ -419,6 +536,7 @@ export default function UserManagement() {
                 <th>ID</th>
                 <th>User Details</th>
                 <th>Role</th>
+                <th>Hierarchy</th>
                 <th>Balance</th>
                 <th>Status</th>
                 <th>Joined</th>
@@ -427,96 +545,130 @@ export default function UserManagement() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="7" className="text-center py-8 text-gray-500">Loading...</td></tr>
+                <tr>
+                  <td colSpan="8" className="text-center py-8 text-gray-500">
+                    Loading...
+                  </td>
+                </tr>
               ) : users.length === 0 ? (
-                <tr><td colSpan="7" className="text-center py-8 text-gray-500">No users found matching the criteria.</td></tr>
+                <tr>
+                  <td colSpan="8" className="text-center py-8 text-gray-500">
+                    No users found in your downline.
+                  </td>
+                </tr>
               ) : (
-                users.map(u => (
-                   <tr key={u.id} className={!u.isActive ? 'opacity-60 bg-gray-50' : ''}>
+                users.map((managedUser) => (
+                  <tr key={managedUser.id} className={!managedUser.isActive ? 'opacity-60 bg-gray-50' : ''}>
                     <td>
-                      <span className="text-[10px] font-mono font-bold text-gray-400">#{u.id.substring(0, 6)}</span>
-                    </td>
-                    <td>
-                      <div className="flex flex-col">
-                         <span className="font-semibold text-gray-900">{u.profile?.ownerName || 'N/A'}</span>
-                         <span className="text-xs text-gray-500">{u.profile?.shopName || 'No Shop Name'}</span>
-                         <span className="text-[10px] text-gray-400">{u.email}</span>
-                      </div>
-                    </td>
-                    <td>
-                       <span className={`badge ${getRoleBadgeClass(u.role)}`}>{u.role}</span>
-                    </td>
-                    <td>
-                       <div className="font-medium text-emerald-600">₹{Number(u.wallet?.balance || 0).toFixed(2)}</div>
-                    </td>
-                    <td>
-                      <span className={`badge ${u.isActive ? 'badge-success' : 'badge-danger'}`}>
-                        {u.isActive ? 'Active' : 'Inactive'}
+                      <span className="text-[10px] font-mono font-bold text-gray-400">
+                        #{managedUser.id.substring(0, 6)}
                       </span>
                     </td>
                     <td>
-                      <span className="text-xs text-gray-500">{new Date(u.createdAt).toLocaleDateString()}</span>
+                      <div className="flex flex-col gap-1">
+                        <span className="font-semibold text-gray-900">{managedUser.profile?.ownerName || 'N/A'}</span>
+                        <span className="text-xs text-gray-500">{managedUser.profile?.shopName || 'No Shop Name'}</span>
+                        <span className="text-[10px] text-gray-400">{managedUser.email}</span>
+                        <span className="text-[11px] text-gray-500">
+                          <span className="font-medium text-gray-700">Added by:</span>{' '}
+                          {formatSummaryPrimary(managedUser.createdBy)}
+                        </span>
+                      </div>
                     </td>
                     <td>
-                      <div className="relative inline-block" data-menu-container>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenMenuId(openMenuId === u.id ? null : u.id);
-                          }}
-                          className="p-2 hover:bg-gray-100 rounded-md border border-gray-200 inline-flex items-center justify-center"
-                          title="Actions"
-                        >
-                          <MoreVertical size={16} className="text-gray-600" />
-                        </button>
-                        
-                        {openMenuId === u.id && (
-                          <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10" onClick={(e) => e.stopPropagation()}>
-                            <button 
-                              onClick={() => { 
-                                setSelectedUser(u); 
-                                setIsEditModalOpen(true);
-                                setOpenMenuId(null);
-                              }}
-                              className="w-full text-left px-4 py-2.5 hover:bg-blue-50 text-blue-600 flex items-center gap-2 border-b border-gray-100 text-sm"
+                      <span className={`badge ${getRoleBadgeClass(managedUser.role)}`}>
+                        {ROLE_LABELS[managedUser.role] || managedUser.role}
+                      </span>
+                    </td>
+                    <td>
+                      <HierarchyStack user={managedUser} />
+                    </td>
+                    <td>
+                      <div className="font-medium text-emerald-600">
+                        Rs {Number(managedUser.wallet?.balance || 0).toFixed(2)}
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`badge ${managedUser.isActive ? 'badge-success' : 'badge-danger'}`}>
+                        {managedUser.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="text-xs text-gray-500">
+                        {new Date(managedUser.createdAt).toLocaleDateString()}
+                      </span>
+                    </td>
+                    <td>
+                      {canManageUsers ? (
+                        <div className="relative inline-block" data-menu-container>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuId(openMenuId === managedUser.id ? null : managedUser.id);
+                            }}
+                            className="p-2 hover:bg-gray-100 rounded-md border border-gray-200 inline-flex items-center justify-center"
+                            title="Actions"
+                          >
+                            <MoreVertical size={16} className="text-gray-600" />
+                          </button>
+
+                          {openMenuId === managedUser.id && (
+                            <div
+                              className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10"
+                              onClick={(e) => e.stopPropagation()}
                             >
-                              <Edit2 size={14} /> Edit User
-                            </button>
-                            
-                            {user.role === 'ADMIN' && (
-                              <button 
+                              <button
                                 onClick={() => {
-                                  loginAsUser(u.id, u.email);
+                                  setSelectedUser(managedUser);
+                                  setIsEditModalOpen(true);
                                   setOpenMenuId(null);
                                 }}
-                                className="w-full text-left px-4 py-2.5 hover:bg-purple-50 text-purple-600 flex items-center gap-2 border-b border-gray-100 text-sm"
+                                className="w-full text-left px-4 py-2.5 hover:bg-blue-50 text-blue-600 flex items-center gap-2 border-b border-gray-100 text-sm"
                               >
-                                <LogIn size={14} /> Login As
+                                <Edit2 size={14} /> Edit User
                               </button>
-                            )}
-                            
-                            <button 
-                              onClick={() => {
-                                toggleStatus(u.id, u.isActive);
-                                setOpenMenuId(null);
-                              }}
-                              className={`w-full text-left px-4 py-2.5 flex items-center gap-2 border-b border-gray-100 text-sm ${u.isActive ? 'hover:bg-red-50 text-red-600' : 'hover:bg-emerald-50 text-emerald-600'}`}
-                            >
-                              {u.isActive ? '⊘ Disable' : '✓ Enable'}
-                            </button>
-                            
-                            <button 
-                              onClick={() => {
-                                deleteUser(u.id, u.profile?.ownerName || u.email);
-                                setOpenMenuId(null);
-                              }}
-                              className="w-full text-left px-4 py-2.5 hover:bg-red-50 text-red-600 flex items-center gap-2 text-sm"
-                            >
-                              <Trash2 size={14} /> Delete
-                            </button>
-                          </div>
-                        )}
-                      </div>
+
+                              {canImpersonate && (
+                                <button
+                                  onClick={() => {
+                                    loginAsUser(managedUser.id, managedUser.email);
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="w-full text-left px-4 py-2.5 hover:bg-purple-50 text-purple-600 flex items-center gap-2 border-b border-gray-100 text-sm"
+                                >
+                                  <LogIn size={14} /> Login As
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() => {
+                                  toggleStatus(managedUser.id, managedUser.isActive);
+                                  setOpenMenuId(null);
+                                }}
+                                className={`w-full text-left px-4 py-2.5 flex items-center gap-2 text-sm ${
+                                  canDeleteUsers ? 'border-b border-gray-100' : ''
+                                } ${managedUser.isActive ? 'hover:bg-red-50 text-red-600' : 'hover:bg-emerald-50 text-emerald-600'}`}
+                              >
+                                {managedUser.isActive ? 'Disable' : 'Enable'}
+                              </button>
+
+                              {canDeleteUsers && (
+                                <button
+                                  onClick={() => {
+                                    deleteUser(managedUser.id, managedUser.profile?.ownerName || managedUser.email);
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="w-full text-left px-4 py-2.5 hover:bg-red-50 text-red-600 flex items-center gap-2 text-sm"
+                                >
+                                  <Trash2 size={14} /> Delete
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">View only</span>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -524,19 +676,33 @@ export default function UserManagement() {
             </tbody>
           </table>
         </div>
-        
-        {/* Pagination placeholder */}
+
         <div className="p-4 border-t border-gray-100 flex justify-between items-center text-sm text-gray-500">
-          <span>Showing page {page} of {totalPages}</span>
+          <span>
+            Showing page {page} of {totalPages}
+          </span>
           <div className="flex gap-2">
-            <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="px-3 py-1 border rounded disabled:opacity-50">Prev</button>
-            <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="px-3 py-1 border rounded disabled:opacity-50">Next</button>
+            <button disabled={page === 1} onClick={() => setPage((value) => value - 1)} className="px-3 py-1 border rounded disabled:opacity-50">
+              Prev
+            </button>
+            <button
+              disabled={page === totalPages}
+              onClick={() => setPage((value) => value + 1)}
+              className="px-3 py-1 border rounded disabled:opacity-50"
+            >
+              Next
+            </button>
           </div>
         </div>
       </div>
 
       <CreateUserModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onUserCreated={fetchUsers} />
-      <EditUserModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} user={selectedUser} onUserUpdated={fetchUsers} />
+      <EditUserModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        user={selectedUser}
+        onUserUpdated={fetchUsers}
+      />
     </div>
   );
 }

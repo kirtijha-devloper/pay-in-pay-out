@@ -18,16 +18,16 @@ export default function AppShell() {
 
   const navLinks = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+    { name: 'Commissions', path: '/commissions', icon: Settings },
     { name: 'Fund Requests', path: '/funds', icon: Wallet },
     { name: 'Bank Verification', path: '/bank-verify', icon: Building2 },
     { name: 'Payout', path: '/payout', icon: Send },
     { name: 'Reports', path: '/reports', icon: FileText },
   ];
 
-  // Admin/Super/Distributor can manage users and commissions
+  // Admin/Super/Distributor can manage users
   if (['ADMIN', 'SUPER', 'DISTRIBUTOR'].includes(user.role)) {
     navLinks.splice(1, 0, { name: 'User Management', path: '/users', icon: Users });
-    navLinks.splice(2, 0, { name: 'Commissions', path: '/commissions', icon: Settings });
   }
 
   return (
