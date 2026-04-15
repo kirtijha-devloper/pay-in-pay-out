@@ -74,7 +74,9 @@ export default function Reports() {
                 <td className={txn.type === 'CREDIT' ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'}>
                   {txn.type === 'CREDIT' ? '+' : '-'} ₹{Number(txn.amount).toFixed(2)}
                 </td>
-                <td className="font-mono text-gray-500">₹{Number(txn.receiverId === user.id ? txn.receiverBalAfter : txn.senderBalAfter).toFixed(2)}</td>
+                <td className="font-mono text-gray-500">
+                  ₹{Number(txn.type === 'CREDIT' ? txn.receiverBalAfter : txn.senderBalAfter).toFixed(2)}
+                </td>
               </tr>
             ))}
           </tbody>

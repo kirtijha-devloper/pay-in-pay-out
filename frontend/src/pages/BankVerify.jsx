@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Building2, Search, CheckCircle2, History, CreditCard, Info, XCircle } from 'lucide-react';
 
 export default function BankVerify() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [formData, setFormData] = useState({
     bankName: '', accountName: '', accountNumber: '', ifscCode: ''
   });
@@ -38,6 +38,7 @@ export default function BankVerify() {
       const { data } = await api.post('/services/verify-bank', formData);
       if (data.success) {
         setResult({ success: true, message: data.message, charge: data.charge });
+        await refreshUser();
         fetchHistory();
       }
     } catch (err) {

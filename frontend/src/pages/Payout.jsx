@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Send, Wallet, History, Info, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function Payout() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [formData, setFormData] = useState({
     amount: '', bankName: '', accountName: '', accountNumber: '', ifscCode: '', remark: ''
   });
@@ -42,6 +42,7 @@ export default function Payout() {
       if (data.success) {
         setMessage({ type: 'success', text: `Payout submitted! Charge: ₹${data.charge}` });
         setFormData({ amount: '', bankName: '', accountName: '', accountNumber: '', ifscCode: '', remark: '' });
+        await refreshUser();
         fetchHistory();
       }
     } catch (err) {

@@ -6,7 +6,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import UserManagement from './pages/UserManagement';
 import Commissions from './pages/Commissions';
-import FundRequests from './pages/FundRequests';
+import Wallet from './pages/Wallet';
 import BankVerify from './pages/BankVerify';
 import Payout from './pages/Payout';
 import Reports from './pages/Reports';
@@ -30,7 +30,8 @@ function App() {
           <Route element={<AppShell />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/users" element={<UserManagement />} />
-            <Route path="/funds" element={<FundRequests />} />
+            <Route path="/wallet" element={<Wallet />} />
+            <Route path="/funds" element={<Wallet />} />
             <Route path="/bank-verify" element={<BankVerify />} />
             <Route path="/payout" element={<Payout />} />
             <Route path="/commissions" element={<Commissions />} />
