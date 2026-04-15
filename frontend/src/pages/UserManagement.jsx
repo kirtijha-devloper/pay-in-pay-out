@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { Search, Plus, Filter, RefreshCw, X, Upload } from 'lucide-react';
+import { Search, Plus, Filter, RefreshCw, X, Upload, Edit2, Trash2, LogIn, MoreVertical } from 'lucide-react';
 
 const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
   const { user } = useAuth();
@@ -162,6 +162,121 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
 };
 
 
+const EditUserModal = ({ isOpen, onClose, user, onUserUpdated }) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  const [formData, setFormData] = useState({
+    email: user?.email || '',
+    ownerName: user?.profile?.ownerName || '',
+    shopName: user?.profile?.shopName || '',
+    mobileNumber: user?.profile?.mobileNumber || '',
+    fullAddress: user?.profile?.fullAddress || '',
+    state: user?.profile?.state || '',
+    pinCode: user?.profile?.pinCode || '',
+    aadhaarNumber: user?.profile?.aadhaarNumber || ''
+  });
+
+  if (!isOpen || !user) return null;
+
+  const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await api.patch(`/users/${user.id}`, formData);
+      if (res.data.success) {
+        onUserUpdated();
+        onClose();
+      } else {
+        setError(res.data.message || 'Failed to update user');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Server error occurred');
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center z-10">
+          <h2 className="text-xl font-semibold">Edit User</h2>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>}
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Account Info */}
+            <div className="space-y-4">
+              <h3 className="font-medium text-gray-900 border-b pb-2">Account Details</h3>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-700 uppercase">Email</label>
+                <input type="email" name="email" required value={formData.email} onChange={handleInputChange} className="w-full" disabled />
+              </div>
+            </div>
+
+            {/* Profile Info */}
+            <div className="space-y-4">
+              <h3 className="font-medium text-gray-900 border-b pb-2">Profile Details</h3>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-700 uppercase">Owner Name</label>
+                <input type="text" name="ownerName" required value={formData.ownerName} onChange={handleInputChange} className="w-full" />
+              </div>
+            </div>
+
+            <div className="space-y-1 md:col-span-2">
+              <label className="text-xs font-medium text-gray-700 uppercase">Shop/Business Name</label>
+              <input type="text" name="shopName" required value={formData.shopName} onChange={handleInputChange} className="w-full" />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-700 uppercase">Mobile Number</label>
+              <input type="tel" name="mobileNumber" required minLength="10" maxLength="10" value={formData.mobileNumber} onChange={handleInputChange} className="w-full" />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-700 uppercase">Aadhaar Number</label>
+              <input type="text" name="aadhaarNumber" required value={formData.aadhaarNumber} onChange={handleInputChange} className="w-full" />
+            </div>
+            
+            {/* Address */}
+            <div className="space-y-4 md:col-span-2">
+              <h3 className="font-medium text-gray-900 border-b pb-2">Address Info</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700 uppercase">Full Address</label>
+                  <input type="text" name="fullAddress" required value={formData.fullAddress} onChange={handleInputChange} className="w-full" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700 uppercase">State</label>
+                  <input type="text" name="state" required value={formData.state} onChange={handleInputChange} className="w-full" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700 uppercase">PIN Code</label>
+                  <input type="text" name="pinCode" required value={formData.pinCode} onChange={handleInputChange} className="w-full" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-gray-200 flex justify-end gap-3">
+            <button type="button" onClick={onClose} className="btn btn-outline" disabled={loading}>Cancel</button>
+            <button type="submit" className="btn btn-primary min-w-[120px]" disabled={loading}>
+              {loading ? 'Updating...' : 'Update User'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 export default function UserManagement() {
   const { user } = useAuth();
   const [users, setUsers] = useState([]);
@@ -172,6 +287,9 @@ export default function UserManagement() {
   const [totalPages, setTotalPages] = useState(1);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -195,6 +313,14 @@ export default function UserManagement() {
     fetchUsers();
   }, [page, filterRole, filterStatus]);
 
+  useEffect(() => {
+    const handleClickOutside = () => setOpenMenuId(null);
+    if (openMenuId) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [openMenuId]);
+
   const toggleStatus = async (userId, currentStatus) => {
     if (!window.confirm(`Are you sure you want to ${currentStatus ? 'disable' : 'enable'} this user?`)) return;
     try {
@@ -204,6 +330,33 @@ export default function UserManagement() {
       }
     } catch (err) {
       alert('Failed to update status');
+    }
+  };
+
+  const deleteUser = async (userId, userName) => {
+    if (!window.confirm(`Are you sure you want to delete ${userName}? This action cannot be undone.`)) return;
+    try {
+      const { data } = await api.delete(`/users/${userId}`);
+      if (data.success) {
+        fetchUsers();
+        alert('User deleted successfully');
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to delete user');
+    }
+  };
+
+  const loginAsUser = async (userId, userEmail) => {
+    if (!window.confirm(`Login as ${userEmail}?`)) return;
+    try {
+      const { data } = await api.post(`/users/${userId}/login-as`);
+      if (data.success && data.token) {
+        // Store the new token and redirect
+        localStorage.setItem('authToken', data.token);
+        window.location.href = '/dashboard';
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to login as user');
     }
   };
 
@@ -298,12 +451,62 @@ export default function UserManagement() {
                       <span className="text-xs text-gray-500">{new Date(u.createdAt).toLocaleDateString()}</span>
                     </td>
                     <td>
-                      <button 
-                        onClick={() => toggleStatus(u.id, u.isActive)}
-                        className={`text-xs px-3 py-1.5 rounded-md border ${u.isActive ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'}`}
-                      >
-                        {u.isActive ? 'Disable' : 'Enable'}
-                      </button>
+                      <div className="relative inline-block">
+                        <button 
+                          onClick={() => setOpenMenuId(openMenuId === u.id ? null : u.id)}
+                          className="p-2 hover:bg-gray-100 rounded-md border border-gray-200 inline-flex items-center justify-center"
+                          title="Actions"
+                        >
+                          <MoreVertical size={16} className="text-gray-600" />
+                        </button>
+                        
+                        {openMenuId === u.id && (
+                          <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                            <button 
+                              onClick={() => { 
+                                setSelectedUser(u); 
+                                setIsEditModalOpen(true);
+                                setOpenMenuId(null);
+                              }}
+                              className="w-full text-left px-4 py-2.5 hover:bg-blue-50 text-blue-600 flex items-center gap-2 border-b border-gray-100 text-sm"
+                            >
+                              <Edit2 size={14} /> Edit User
+                            </button>
+                            
+                            {user.role === 'ADMIN' && (
+                              <button 
+                                onClick={() => {
+                                  loginAsUser(u.id, u.email);
+                                  setOpenMenuId(null);
+                                }}
+                                className="w-full text-left px-4 py-2.5 hover:bg-purple-50 text-purple-600 flex items-center gap-2 border-b border-gray-100 text-sm"
+                              >
+                                <LogIn size={14} /> Login As
+                              </button>
+                            )}
+                            
+                            <button 
+                              onClick={() => {
+                                toggleStatus(u.id, u.isActive);
+                                setOpenMenuId(null);
+                              }}
+                              className={`w-full text-left px-4 py-2.5 flex items-center gap-2 border-b border-gray-100 text-sm ${u.isActive ? 'hover:bg-red-50 text-red-600' : 'hover:bg-emerald-50 text-emerald-600'}`}
+                            >
+                              {u.isActive ? '⊘ Disable' : '✓ Enable'}
+                            </button>
+                            
+                            <button 
+                              onClick={() => {
+                                deleteUser(u.id, u.profile?.ownerName || u.email);
+                                setOpenMenuId(null);
+                              }}
+                              className="w-full text-left px-4 py-2.5 hover:bg-red-50 text-red-600 flex items-center gap-2 text-sm"
+                            >
+                              <Trash2 size={14} /> Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -323,6 +526,7 @@ export default function UserManagement() {
       </div>
 
       <CreateUserModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onUserCreated={fetchUsers} />
+      <EditUserModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} user={selectedUser} onUserUpdated={fetchUsers} />
     </div>
   );
 }

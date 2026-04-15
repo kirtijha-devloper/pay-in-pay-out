@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const multer_1 = __importDefault(require("multer"));
 const user_controller_1 = require("../controllers/user.controller");
+const auth_controller_1 = require("../controllers/auth.controller");
 const auth_1 = require("../middleware/auth");
 const storage = multer_1.default.diskStorage({
     destination: 'uploads/',
@@ -26,5 +27,9 @@ router.get('/:id', user_controller_1.getUserById);
 router.patch('/profile', user_controller_1.updateProfile);
 router.patch('/:id', (0, auth_1.authorize)('ADMIN', 'SUPER', 'DISTRIBUTOR'), user_controller_1.updateUser);
 router.patch('/:id/toggle', (0, auth_1.authorize)('ADMIN', 'SUPER', 'DISTRIBUTOR'), user_controller_1.toggleUserStatus);
+router.post('/:id/login-as', (0, auth_1.authorize)('ADMIN'), (req, res) => {
+    req.body = { ...req.body, userId: req.params.id };
+    (0, auth_controller_1.loginAs)(req, res);
+});
 router.delete('/:id', (0, auth_1.authorize)('ADMIN'), user_controller_1.deleteUser);
 exports.default = router;

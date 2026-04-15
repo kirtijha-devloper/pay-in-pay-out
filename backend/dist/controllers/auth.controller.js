@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.changePassword = exports.getMe = exports.login = void 0;
+exports.loginAs = exports.changePassword = exports.getMe = exports.login = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prisma_1 = __importDefault(require("../lib/prisma"));
@@ -83,3 +83,43 @@ const changePassword = async (req, res) => {
     }
 };
 exports.changePassword = changePassword;
+const loginAs = async (req, res) => {
+    const { userId } = req.body;
+    // Only admin can login as another user
+    if (req.user.role !== 'ADMIN') {
+        res.status(403).json({ success: false, message: 'Only admins can login as other users' });
+        return;
+    }
+    try {
+        const targetUser = await prisma_1.default.user.findUnique({
+            where: { id: userId },
+            include: { profile: true, wallet: true },
+        });
+        if (!targetUser) {
+            res.status(404).json({ success: false, message: 'User not found' });
+            return;
+        }
+        if (!targetUser.isActive) {
+            res.status(403).json({ success: false, message: 'Target user account is deactivated' });
+            return;
+        }
+        const token = jsonwebtoken_1.default.sign({ id: targetUser.id, role: targetUser.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+        res.json({
+            success: true,
+            token,
+            user: {
+                id: targetUser.id,
+                email: targetUser.email,
+                role: targetUser.role,
+                isActive: targetUser.isActive,
+                profile: targetUser.profile,
+                wallet: targetUser.wallet,
+            },
+        });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+exports.loginAs = loginAs;

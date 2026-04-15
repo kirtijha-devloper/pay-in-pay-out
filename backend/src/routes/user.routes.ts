@@ -10,6 +10,7 @@ import {
   updateProfile,
   deleteUser,
 } from '../controllers/user.controller';
+import { loginAs } from '../controllers/auth.controller';
 import { authenticate, authorize } from '../middleware/auth';
 
 const storage = multer.diskStorage({
@@ -39,6 +40,10 @@ router.get('/:id', getUserById);
 router.patch('/profile', updateProfile);
 router.patch('/:id', authorize('ADMIN', 'SUPER', 'DISTRIBUTOR'), updateUser);
 router.patch('/:id/toggle', authorize('ADMIN', 'SUPER', 'DISTRIBUTOR'), toggleUserStatus);
+router.post('/:id/login-as', authorize('ADMIN'), (req, res) => {
+  (req as any).body = { ...(req as any).body, userId: req.params.id };
+  loginAs(req, res);
+});
 router.delete('/:id', authorize('ADMIN'), deleteUser);
 
 export default router;

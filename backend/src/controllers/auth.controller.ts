@@ -81,3 +81,52 @@ export const changePassword = async (req: any, res: Response) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+export const loginAs = async (req: any, res: Response) => {
+  const { userId } = req.body;
+  
+  // Only admin can login as another user
+  if (req.user.role !== 'ADMIN') {
+    res.status(403).json({ success: false, message: 'Only admins can login as other users' });
+    return;
+  }
+
+  try {
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { profile: true, wallet: true },
+    });
+
+    if (!targetUser) {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+
+    if (!targetUser.isActive) {
+      res.status(403).json({ success: false, message: 'Target user account is deactivated' });
+      return;
+    }
+
+    const token = jwt.sign(
+      { id: targetUser.id, role: targetUser.role },
+      process.env.JWT_SECRET!,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: targetUser.id,
+        email: targetUser.email,
+        role: targetUser.role,
+        isActive: targetUser.isActive,
+        profile: targetUser.profile,
+        wallet: targetUser.wallet,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
