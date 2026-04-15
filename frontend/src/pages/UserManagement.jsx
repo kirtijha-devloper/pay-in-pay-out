@@ -134,11 +134,11 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center z-10">
-          <h2 className="text-xl font-semibold">Create New User</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-0 md:p-4">
+      <div className="bg-white rounded-t-2xl md:rounded-xl w-full max-w-2xl h-[95vh] md:h-auto md:max-h-[90vh] overflow-y-auto animate-slide-up md:animate-fade-in shadow-2xl">
+        <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-gray-100 p-4 flex justify-between items-center z-10">
+          <h2 className="text-xl font-bold">Create New User</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
             <X size={20} />
           </button>
         </div>
@@ -277,11 +277,11 @@ const EditUserModal = ({ isOpen, onClose, user, onUserUpdated }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center z-10">
-          <h2 className="text-xl font-semibold">Edit User</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-0 md:p-4">
+      <div className="bg-white rounded-t-2xl md:rounded-xl w-full max-w-2xl h-[95vh] md:h-auto md:max-h-[90vh] overflow-y-auto animate-slide-up md:animate-fade-in shadow-2xl">
+        <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-gray-100 p-4 flex justify-between items-center z-10">
+          <h2 className="text-xl font-bold">Edit User</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
             <X size={20} />
           </button>
         </div>
@@ -533,7 +533,7 @@ export default function UserManagement() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>ID</th>
+                <th className="sticky-col">ID</th>
                 <th>User Details</th>
                 <th>Role</th>
                 <th>Hierarchy</th>
@@ -541,7 +541,7 @@ export default function UserManagement() {
                 <th>Status</th>
                 <th>KYC</th>
                 <th>Joined</th>
-                <th>Actions</th>
+                <th className="sticky-col-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -560,8 +560,8 @@ export default function UserManagement() {
               ) : (
                 users.map((managedUser) => (
                   <tr key={managedUser.id} className={!managedUser.isActive ? 'opacity-60 bg-gray-50' : ''}>
-                    <td>
-                      <span className="text-[10px] font-mono font-bold text-gray-400">
+                    <td className="sticky-col">
+                      <span className="text-[10px] font-mono font-bold text-gray-400 bg-white px-1 rounded">
                         #{managedUser.id.substring(0, 6)}
                       </span>
                     </td>
@@ -604,7 +604,7 @@ export default function UserManagement() {
                         {new Date(managedUser.createdAt).toLocaleDateString()}
                       </span>
                     </td>
-                    <td>
+                    <td className="sticky-col-right">
                       {canManageUsers ? (
                         <div className="relative inline-block" data-menu-container>
                           <button

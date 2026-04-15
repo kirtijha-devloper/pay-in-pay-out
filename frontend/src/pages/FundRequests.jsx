@@ -87,15 +87,15 @@ function RequestModal({ isOpen, onClose, onSaved, bankAccounts }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl w-full max-w-2xl p-6">
-        <div className="flex justify-between items-center mb-6">
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-0 md:p-4">
+      <div className="bg-white rounded-t-2xl md:rounded-xl w-full max-w-2xl h-[95vh] md:h-auto md:max-h-[90vh] overflow-y-auto animate-slide-up md:animate-fade-in shadow-2xl">
+        <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-gray-100 p-4 flex justify-between items-center z-10">
           <div>
             <h2 className="text-xl font-bold">New Fund Request</h2>
-            <p className="text-sm text-gray-500">Choose a company bank account and attach your receipt.</p>
+            <p className="text-[10px] md:text-sm text-gray-500 uppercase tracking-wider font-semibold">Wallet Top-up</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <XCircle size={24} />
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+            <XCircle size={24} className="text-gray-400" />
           </button>
         </div>
         {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 mb-4">{error}</div>}
@@ -218,12 +218,12 @@ export default function FundRequests() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>User / Date</th>
+                <th className="sticky-col">User / Date</th>
                 <th>Amount</th>
                 <th>Bank Info</th>
                 <th>Receipt</th>
                 <th>Status</th>
-                {isAdmin && <th>Actions</th>}
+                {isAdmin && <th className="sticky-col-right">Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -234,7 +234,7 @@ export default function FundRequests() {
               ) : (
                 requests.map((r) => (
                   <tr key={r.id}>
-                    <td>
+                    <td className="sticky-col">
                       <div className="flex flex-col">
                         <span className="font-semibold">{formatParty(r.user)}</span>
                         <span className="text-[10px] text-gray-400">{new Date(r.createdAt).toLocaleString()}</span>
@@ -254,7 +254,7 @@ export default function FundRequests() {
                     </td>
                     <td><StatusBadge status={r.status} /></td>
                     {isAdmin && (
-                      <td>
+                      <td className="sticky-col-right">
                         {r.status === 'PENDING' && (
                           <div className="flex gap-2">
                             <button onClick={() => approveRequest(r.id)} className="btn btn-primary btn-sm bg-emerald-600 border-emerald-600">Approve</button>

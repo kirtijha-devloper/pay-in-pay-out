@@ -61,82 +61,82 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex-col gap-6 space-y-8">
-      <div className="flex flex-wrap justify-between items-end gap-4">
+    <div className="flex-col gap-4 md:gap-6 space-y-6 md:space-y-8">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 lh-1.2">Welcome back, {user.profile?.ownerName || 'User'}!</h1>
-          <p className="text-gray-500 mt-1">Here is what's happening with your business today.</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 lh-1.2">Welcome back, {user.profile?.ownerName || 'User'}!</h1>
+          <p className="text-gray-500 mt-1 text-sm md:text-base">Here is what's happening with your business today.</p>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-gray-200 text-sm font-medium shadow-sm">
+        <div className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-white rounded-xl border border-gray-200 text-xs md:text-sm font-medium shadow-sm w-fit">
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-          System Live: {new Date().toLocaleTimeString()}
+          <span className="hide-mobile">System Live: </span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="card group hover:scale-[1.02] transition-all duration-300 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 transition-all group-hover:bg-primary/10"></div>
-          <div className="p-6 relative">
-            <div className="flex justify-between items-start mb-4">
-              <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
-                <Wallet size={24} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="card group hover:scale-[1.01] md:hover:scale-[1.02] transition-all duration-300 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-primary/5 rounded-full -mr-12 -mt-12 transition-all group-hover:bg-primary/10"></div>
+          <div className="p-4 md:p-6 relative">
+            <div className="flex justify-between items-start mb-2 md:mb-4">
+              <div className="p-2 md:p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+                <Wallet size={20} />
               </div>
-              <TrendingUp size={20} className="text-emerald-500" />
+              <TrendingUp size={18} className="text-emerald-500" />
             </div>
-            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Wallet Balance</h3>
-            <div className="text-2xl font-black text-gray-900 mt-1">₹ {Number(stats.totalBalance).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+            <h3 className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">Wallet Balance</h3>
+            <div className="text-xl md:text-2xl font-black text-gray-900 mt-1">₹ {Number(stats.totalBalance).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
           </div>
         </div>
 
-        <div className="card group hover:scale-[1.02] transition-all duration-300 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50/50 rounded-full -mr-16 -mt-16 transition-all group-hover:bg-emerald-100/50"></div>
-          <div className="p-6 relative">
-            <div className="flex justify-between items-start mb-4">
-              <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
-                <Users size={24} />
+        <div className="card group hover:scale-[1.01] md:hover:scale-[1.02] transition-all duration-300 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-emerald-50/50 rounded-full -mr-12 -mt-12 transition-all group-hover:bg-emerald-100/50"></div>
+          <div className="p-4 md:p-6 relative">
+            <div className="flex justify-between items-start mb-2 md:mb-4">
+              <div className="p-2 md:p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
+                <Users size={20} />
               </div>
             </div>
-            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Total Downline</h3>
-            <div className="text-2xl font-black text-gray-900 mt-1">{stats.totalUsers} <span className="text-xs font-normal text-gray-400 ml-1">accounts</span></div>
+            <h3 className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">Total Downline</h3>
+            <div className="text-xl md:text-2xl font-black text-gray-900 mt-1">{stats.totalUsers} <span className="text-[10px] md:text-xs font-normal text-gray-400 ml-1 uppercase">accounts</span></div>
           </div>
         </div>
 
-        <div className="card group hover:scale-[1.02] transition-all duration-300 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-50/50 rounded-full -mr-16 -mt-16 transition-all group-hover:bg-purple-100/50"></div>
-          <div className="p-6 relative">
-            <div className="flex justify-between items-start mb-4">
-              <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl">
-                <Activity size={24} />
+        <div className="card group hover:scale-[1.01] md:hover:scale-[1.02] transition-all duration-300 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-purple-50/50 rounded-full -mr-12 -mt-12 transition-all group-hover:bg-purple-100/50"></div>
+          <div className="p-4 md:p-6 relative">
+            <div className="flex justify-between items-start mb-2 md:mb-4">
+              <div className="p-2 md:p-2.5 bg-purple-50 text-purple-600 rounded-xl">
+                <Activity size={20} />
               </div>
             </div>
-            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Service Requests</h3>
-            <div className="text-2xl font-black text-gray-900 mt-1">{stats.totalTransactions}</div>
+            <h3 className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">Service Requests</h3>
+            <div className="text-xl md:text-2xl font-black text-gray-900 mt-1">{stats.totalTransactions}</div>
           </div>
         </div>
 
-        <div className="card group hover:scale-[1.02] transition-all duration-300 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50/50 rounded-full -mr-16 -mt-16 transition-all group-hover:bg-amber-100/50"></div>
-          <div className="p-6 relative">
-            <div className="flex justify-between items-start mb-4">
-              <div className="p-2.5 bg-amber-50 text-amber-600 rounded-xl">
-                <Clock size={24} />
+        <div className="card group hover:scale-[1.01] md:hover:scale-[1.02] transition-all duration-300 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-amber-50/50 rounded-full -mr-12 -mt-12 transition-all group-hover:bg-amber-100/50"></div>
+          <div className="p-4 md:p-6 relative">
+            <div className="flex justify-between items-start mb-2 md:mb-4">
+              <div className="p-2 md:p-2.5 bg-amber-50 text-amber-600 rounded-xl">
+                <Clock size={20} />
               </div>
             </div>
-            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Pending Action</h3>
-            <div className="text-2xl font-black text-gray-900 mt-1">{stats.pendingRequests}</div>
+            <h3 className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">Pending Action</h3>
+            <div className="text-xl md:text-2xl font-black text-gray-900 mt-1">{stats.pendingRequests}</div>
           </div>
         </div>
       </div>
 
       {/* Main Grid: Charts & Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         {/* Analytics Chart */}
         <div className="lg:col-span-2 card">
-          <div className="p-6 border-b flex justify-between items-center">
+          <div className="p-4 md:p-6 border-b flex justify-between items-center">
             <div>
-              <h2 className="text-lg font-bold">Transaction Trends</h2>
-              <p className="text-xs text-gray-500">Weekly business volume analysis</p>
+              <h2 className="text-base md:text-lg font-bold">Transaction Trends</h2>
+              <p className="text-[10px] md:text-xs text-gray-500">Weekly analysis</p>
             </div>
             <div className="flex gap-2">
               <span className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase">
