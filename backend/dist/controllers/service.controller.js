@@ -3,11 +3,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getServiceRequests = exports.submitPayout = exports.verifyBank = exports.verifyBankCached = exports.getVerifiedBankBeneficiaries = exports.updateBankVerificationFee = exports.getBankVerificationFee = exports.rejectFundRequest = exports.approveFundRequest = exports.submitFundRequest = exports.toggleCompanyBankAccount = exports.upsertCompanyBankAccount = exports.getCompanyBankAccounts = void 0;
+exports.getServiceRequests = exports.submitPayout = exports.getPayoutQuote = exports.verifyBank = exports.verifyBankCached = exports.getVerifiedBankBeneficiaries = exports.updateBankVerificationFee = exports.getBankVerificationFee = exports.rejectFundRequest = exports.approveFundRequest = exports.submitFundRequest = exports.toggleCompanyBankAccount = exports.upsertCompanyBankAccount = exports.getCompanyBankAccounts = void 0;
 const client_1 = require("@prisma/client");
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const commission_service_1 = require("../services/commission.service");
 const bankVerification_service_1 = require("../services/bankVerification.service");
+const payout_service_1 = require("../services/payout.service");
 function toNumberAmount(value) {
     return Number(value || 0);
 }
@@ -350,56 +351,35 @@ const verifyBank = async (req, res) => {
     }
 };
 exports.verifyBank = verifyBank;
-const submitPayout = async (req, res) => {
-    const { amount, bankName, accountName, accountNumber, ifscCode, remark } = req.body;
-    const userId = req.user.id;
+const getPayoutQuote = async (req, res) => {
+    const amount = req.query.amount ?? req.body?.amount;
     try {
-        const charge = await (0, commission_service_1.resolveCharge)(userId, 'PAYOUT', amount);
-        const total = amount + charge;
-        const wallet = await prisma_1.default.wallet.findUnique({ where: { userId } });
-        if (!wallet || Number(wallet.balance) < total) {
-            res.status(400).json({ success: false, message: `Insufficient balance. Required: ₹${total}` });
-            return;
-        }
-        await prisma_1.default.$transaction([
-            prisma_1.default.wallet.update({ where: { userId }, data: { balance: { decrement: total } } }),
-            prisma_1.default.serviceRequest.create({
-                data: {
-                    userId,
-                    serviceType: 'PAYOUT',
-                    amount,
-                    bankName,
-                    accountName,
-                    accountNumber,
-                    ifscCode,
-                    remark,
-                    status: 'PENDING',
-                },
-            }),
-        ]);
-        const shares = await (0, commission_service_1.buildChargeDistribution)(userId, 'PAYOUT', amount);
-        for (const share of shares) {
-            const updatedWallet = await prisma_1.default.wallet.upsert({
-                where: { userId: share.receiverId },
-                create: { userId: share.receiverId, balance: share.amount },
-                update: { balance: { increment: share.amount } },
-            });
-            await prisma_1.default.walletTransaction.create({
-                data: {
-                    amount: share.amount,
-                    type: 'CREDIT',
-                    description: 'Payout commission',
-                    senderId: userId,
-                    receiverId: share.receiverId,
-                    receiverBalAfter: updatedWallet.balance,
-                },
-            });
-        }
-        res.json({ success: true, message: 'Payout submitted for processing', charge });
+        const quote = await (0, payout_service_1.getPayoutQuote)(req.user.id, amount);
+        res.json({ success: true, quote });
     }
     catch (err) {
+        const statusCode = err?.statusCode || 500;
+        res.status(statusCode).json({
+            success: false,
+            message: err instanceof Error ? err.message : 'Server error',
+        });
+    }
+};
+exports.getPayoutQuote = getPayoutQuote;
+const submitPayout = async (req, res) => {
+    try {
+        const result = await (0, payout_service_1.submitPayoutRequest)(req.user.id, req.body);
+        res.status(result.success ? 200 : 400).json(result);
+    }
+    catch (err) {
+        const statusCode = err?.statusCode || 500;
         console.error(err);
-        res.status(500).json({ success: false, message: 'Server error' });
+        res.status(statusCode).json({
+            success: false,
+            message: err instanceof Error ? err.message : 'Server error',
+            requestId: err?.requestId,
+            settlement: err?.settlement,
+        });
     }
 };
 exports.submitPayout = submitPayout;

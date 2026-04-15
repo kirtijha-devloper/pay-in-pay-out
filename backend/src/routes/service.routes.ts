@@ -12,6 +12,7 @@ import {
   rejectFundRequest,
   updateBankVerificationFee,
   verifyBankCached,
+  getPayoutQuote,
   submitPayout,
   getServiceRequests,
 } from '../controllers/service.controller';
@@ -58,6 +59,8 @@ router.get('/bank-verify/fee', getBankVerificationFee);
 router.patch('/bank-verify/fee', authorize('ADMIN'), updateBankVerificationFee);
 router.get('/bank-verify/beneficiaries', getVerifiedBankBeneficiaries);
 router.post('/bank-verify', verifyBankCached);
+router.get('/payout/quote', getPayoutQuote);
+router.get('/payout/beneficiaries', getVerifiedBankBeneficiaries);
 router.post('/payout', submitPayout);
 
 export default router;

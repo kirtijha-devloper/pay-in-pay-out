@@ -140,6 +140,28 @@ function computeCharge(
   return toDecimalAmount(row.commissionValue).toNumber();
 }
 
+function resolveChargeWithinAncestorScope(
+  user: ChainUser,
+  scopedAncestors: ChainUser[],
+  serviceType: string,
+  amountInput: Prisma.Decimal | string | number,
+  defaults: NormalizedDefaultRow[],
+  overrides: NormalizedOverrideRow[]
+) {
+  const amount = toDecimalAmount(amountInput);
+  const amountPaise = amount.mul(100).toDecimalPlaces(0).toNumber();
+  const scopeIds = new Set(scopedAncestors.map((ancestor) => ancestor.id));
+  const scopedDefaults = defaults.filter((row) => row.serviceType === serviceType && scopeIds.has(row.setById));
+  const scopedOverrides = overrides.filter((row) => row.serviceType === serviceType && scopeIds.has(row.setById));
+  const row = selectResolvedRate(user, scopedAncestors, serviceType, amountPaise, scopedDefaults, scopedOverrides);
+
+  if (!row) {
+    return 0;
+  }
+
+  return computeCharge(row, amount);
+}
+
 export function getAssignableRateRoles(actorRole: string) {
   return MANAGER_ROLE_SCOPE[actorRole as Role] ?? [];
 }
@@ -528,7 +550,7 @@ export async function buildChargeDistribution(
   serviceType: string,
   amountInput: Prisma.Decimal | string | number
 ) {
-  const context = await loadHierarchyChain(userId);
+  const context = await loadRateContext(userId, [serviceType]);
   if (!context) {
     return [] as ChargeDistributionEntry[];
   }
@@ -539,7 +561,14 @@ export async function buildChargeDistribution(
     return [] as ChargeDistributionEntry[];
   }
 
-  const charges = await Promise.all(beneficiaries.map((node) => resolveCharge(node.id, serviceType, amount.toNumber())));
+  const charges = await Promise.all(
+    beneficiaries.map((_, index) => {
+      const scopedAncestors = context.ancestors.slice(context.ancestors.length - 1 - index);
+      return Promise.resolve(
+        resolveChargeWithinAncestorScope(context.user, scopedAncestors, serviceType, amount, context.defaults, context.overrides)
+      );
+    })
+  );
   const shares: ChargeDistributionEntry[] = [];
 
   for (let index = 0; index < beneficiaries.length; index += 1) {

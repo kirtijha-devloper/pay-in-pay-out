@@ -3,10 +3,21 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.loginAs = exports.changePassword = exports.getMe = exports.login = void 0;
+exports.changeTransactionPin = exports.loginAs = exports.changePassword = exports.getMe = exports.login = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prisma_1 = __importDefault(require("../lib/prisma"));
+function buildPublicUserPayload(user) {
+    return {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+        profile: user.profile,
+        wallet: user.wallet,
+        transactionPinSet: Boolean(user.transactionPinHash),
+    };
+}
 const login = async (req, res) => {
     const { email, password } = req.body;
     const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
@@ -37,14 +48,7 @@ const login = async (req, res) => {
         res.json({
             success: true,
             token,
-            user: {
-                id: user.id,
-                email: user.email,
-                role: user.role,
-                isActive: user.isActive,
-                profile: user.profile,
-                wallet: user.wallet,
-            },
+            user: buildPublicUserPayload(user),
         });
     }
     catch (err) {
@@ -59,7 +63,11 @@ const getMe = async (req, res) => {
             where: { id: req.user.id },
             include: { profile: true, wallet: true },
         });
-        res.json({ success: true, user });
+        if (!user) {
+            res.status(404).json({ success: false, message: 'User not found' });
+            return;
+        }
+        res.json({ success: true, user: buildPublicUserPayload(user) });
     }
     catch {
         res.status(500).json({ success: false, message: 'Server error' });
@@ -113,14 +121,7 @@ const loginAs = async (req, res) => {
         res.json({
             success: true,
             token,
-            user: {
-                id: targetUser.id,
-                email: targetUser.email,
-                role: targetUser.role,
-                isActive: targetUser.isActive,
-                profile: targetUser.profile,
-                wallet: targetUser.wallet,
-            },
+            user: buildPublicUserPayload(targetUser),
         });
     }
     catch (err) {
@@ -129,3 +130,55 @@ const loginAs = async (req, res) => {
     }
 };
 exports.loginAs = loginAs;
+const changeTransactionPin = async (req, res) => {
+    const { currentPin, newPin, confirmPin } = req.body;
+    try {
+        const user = await prisma_1.default.user.findUnique({
+            where: { id: req.user.id },
+            select: {
+                id: true,
+                transactionPinHash: true,
+            },
+        });
+        if (!user) {
+            res.status(404).json({ success: false, message: 'User not found' });
+            return;
+        }
+        const normalizedNewPin = typeof newPin === 'string' ? newPin.trim() : '';
+        const normalizedConfirmPin = typeof confirmPin === 'string' ? confirmPin.trim() : '';
+        const normalizedCurrentPin = typeof currentPin === 'string' ? currentPin.trim() : '';
+        if (!/^\d{4,6}$/.test(normalizedNewPin)) {
+            res.status(400).json({ success: false, message: 'Transaction PIN must be 4 to 6 digits' });
+            return;
+        }
+        if (normalizedNewPin !== normalizedConfirmPin) {
+            res.status(400).json({ success: false, message: 'Transaction PIN confirmation does not match' });
+            return;
+        }
+        if (user.transactionPinHash) {
+            if (!normalizedCurrentPin) {
+                res.status(400).json({ success: false, message: 'Current Transaction PIN is required' });
+                return;
+            }
+            const matches = await bcryptjs_1.default.compare(normalizedCurrentPin, user.transactionPinHash);
+            if (!matches) {
+                res.status(400).json({ success: false, message: 'Current Transaction PIN is incorrect' });
+                return;
+            }
+        }
+        const transactionPinHash = await bcryptjs_1.default.hash(normalizedNewPin, 10);
+        await prisma_1.default.user.update({
+            where: { id: user.id },
+            data: {
+                transactionPinHash,
+                transactionPinUpdatedAt: new Date(),
+            },
+        });
+        res.json({ success: true, message: 'Transaction PIN updated successfully', transactionPinSet: true });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+exports.changeTransactionPin = changeTransactionPin;

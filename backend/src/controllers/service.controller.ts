@@ -9,6 +9,7 @@ import {
   updateBankVerificationFee as saveBankVerificationFee,
   verifyBankBeneficiary,
 } from '../services/bankVerification.service';
+import { getPayoutQuote as getPayoutQuoteService, submitPayoutRequest } from '../services/payout.service';
 
 function toNumberAmount(value: Prisma.Decimal | string | number | null | undefined) {
   return Number(value || 0);
@@ -399,61 +400,34 @@ export const verifyBank = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const submitPayout = async (req: AuthRequest, res: Response) => {
-  const { amount, bankName, accountName, accountNumber, ifscCode, remark } = req.body;
-  const userId = req.user!.id;
+export const getPayoutQuote = async (req: AuthRequest, res: Response) => {
+  const amount = req.query.amount ?? req.body?.amount;
 
   try {
-    const charge = await resolveCharge(userId, 'PAYOUT', amount);
-    const total = amount + charge;
-    const wallet = await prisma.wallet.findUnique({ where: { userId } });
-
-    if (!wallet || Number(wallet.balance) < total) {
-      res.status(400).json({ success: false, message: `Insufficient balance. Required: ₹${total}` });
-      return;
-    }
-
-    await prisma.$transaction([
-      prisma.wallet.update({ where: { userId }, data: { balance: { decrement: total } } }),
-      prisma.serviceRequest.create({
-        data: {
-          userId,
-          serviceType: 'PAYOUT',
-          amount,
-          bankName,
-          accountName,
-          accountNumber,
-          ifscCode,
-          remark,
-          status: 'PENDING',
-        },
-      }),
-    ]);
-
-    const shares = await buildChargeDistribution(userId, 'PAYOUT', amount);
-    for (const share of shares) {
-      const updatedWallet = await prisma.wallet.upsert({
-        where: { userId: share.receiverId },
-        create: { userId: share.receiverId, balance: share.amount },
-        update: { balance: { increment: share.amount } },
-      });
-
-      await prisma.walletTransaction.create({
-        data: {
-          amount: share.amount,
-          type: 'CREDIT',
-          description: 'Payout commission',
-          senderId: userId,
-          receiverId: share.receiverId,
-          receiverBalAfter: updatedWallet.balance,
-        },
-      });
-    }
-
-    res.json({ success: true, message: 'Payout submitted for processing', charge });
+    const quote = await getPayoutQuoteService(req.user!.id, amount as string | number);
+    res.json({ success: true, quote });
   } catch (err) {
+    const statusCode = (err as any)?.statusCode || 500;
+    res.status(statusCode).json({
+      success: false,
+      message: err instanceof Error ? err.message : 'Server error',
+    });
+  }
+};
+
+export const submitPayout = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await submitPayoutRequest(req.user!.id, req.body);
+    res.status(result.success ? 200 : 400).json(result);
+  } catch (err) {
+    const statusCode = (err as any)?.statusCode || 500;
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(statusCode).json({
+      success: false,
+      message: err instanceof Error ? err.message : 'Server error',
+      requestId: (err as any)?.requestId,
+      settlement: (err as any)?.settlement,
+    });
   }
 };
 

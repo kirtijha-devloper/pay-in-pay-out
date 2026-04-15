@@ -44,5 +44,7 @@ router.get('/bank-verify/fee', service_controller_1.getBankVerificationFee);
 router.patch('/bank-verify/fee', (0, auth_1.authorize)('ADMIN'), service_controller_1.updateBankVerificationFee);
 router.get('/bank-verify/beneficiaries', service_controller_1.getVerifiedBankBeneficiaries);
 router.post('/bank-verify', service_controller_1.verifyBankCached);
+router.get('/payout/quote', service_controller_1.getPayoutQuote);
+router.get('/payout/beneficiaries', service_controller_1.getVerifiedBankBeneficiaries);
 router.post('/payout', service_controller_1.submitPayout);
 exports.default = router;

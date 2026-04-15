@@ -66,6 +66,18 @@ function computeCharge(row, amount) {
     }
     return toDecimalAmount(row.commissionValue).toNumber();
 }
+function resolveChargeWithinAncestorScope(user, scopedAncestors, serviceType, amountInput, defaults, overrides) {
+    const amount = toDecimalAmount(amountInput);
+    const amountPaise = amount.mul(100).toDecimalPlaces(0).toNumber();
+    const scopeIds = new Set(scopedAncestors.map((ancestor) => ancestor.id));
+    const scopedDefaults = defaults.filter((row) => row.serviceType === serviceType && scopeIds.has(row.setById));
+    const scopedOverrides = overrides.filter((row) => row.serviceType === serviceType && scopeIds.has(row.setById));
+    const row = selectResolvedRate(user, scopedAncestors, serviceType, amountPaise, scopedDefaults, scopedOverrides);
+    if (!row) {
+        return 0;
+    }
+    return computeCharge(row, amount);
+}
 function getAssignableRateRoles(actorRole) {
     return exports.MANAGER_ROLE_SCOPE[actorRole] ?? [];
 }
@@ -294,7 +306,7 @@ async function validateUserOverrideFloor(targetUserId, serviceType, commissionVa
     return validateOverrideRateFloorInternal(targetUserId, serviceType, commissionValueInput, minAmount, maxAmount, excludeOverrideId);
 }
 async function buildChargeDistribution(userId, serviceType, amountInput) {
-    const context = await loadHierarchyChain(userId);
+    const context = await loadRateContext(userId, [serviceType]);
     if (!context) {
         return [];
     }
@@ -303,7 +315,10 @@ async function buildChargeDistribution(userId, serviceType, amountInput) {
     if (beneficiaries.length === 0) {
         return [];
     }
-    const charges = await Promise.all(beneficiaries.map((node) => resolveCharge(node.id, serviceType, amount.toNumber())));
+    const charges = await Promise.all(beneficiaries.map((_, index) => {
+        const scopedAncestors = context.ancestors.slice(context.ancestors.length - 1 - index);
+        return Promise.resolve(resolveChargeWithinAncestorScope(context.user, scopedAncestors, serviceType, amount, context.defaults, context.overrides));
+    }));
     const shares = [];
     for (let index = 0; index < beneficiaries.length; index += 1) {
         const currentCharge = charges[index] ?? 0;

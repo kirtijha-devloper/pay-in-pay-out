@@ -7,6 +7,8 @@ import userRoutes from './routes/user.routes';
 import serviceRoutes from './routes/service.routes';
 import commissionRoutes from './routes/commission.routes';
 import reportRoutes from './routes/report.routes';
+import { startBranchxPayoutSyncJob } from './jobs/branchxPayoutSync';
+import { ensureRuntimeSchema } from './services/runtimeSchema.service';
 
 dotenv.config();
 
@@ -28,6 +30,16 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'AbheePay API is running', timestamp: new Date() });
 });
 
-app.listen(PORT, () => {
-  console.log(`✅ AbheePay server running on http://localhost:${PORT}`);
+async function bootServer() {
+  await ensureRuntimeSchema();
+  startBranchxPayoutSyncJob();
+
+  app.listen(PORT, () => {
+    console.log(`✅ AbheePay server running on http://localhost:${PORT}`);
+  });
+}
+
+bootServer().catch((error) => {
+  console.error('Failed to start server', error);
+  process.exit(1);
 });

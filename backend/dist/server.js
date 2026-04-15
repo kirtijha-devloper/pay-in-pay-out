@@ -12,6 +12,8 @@ const user_routes_1 = __importDefault(require("./routes/user.routes"));
 const service_routes_1 = __importDefault(require("./routes/service.routes"));
 const commission_routes_1 = __importDefault(require("./routes/commission.routes"));
 const report_routes_1 = __importDefault(require("./routes/report.routes"));
+const branchxPayoutSync_1 = require("./jobs/branchxPayoutSync");
+const runtimeSchema_service_1 = require("./services/runtimeSchema.service");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
@@ -27,6 +29,14 @@ app.use('/api/reports', report_routes_1.default);
 app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', message: 'AbheePay API is running', timestamp: new Date() });
 });
-app.listen(PORT, () => {
-    console.log(`✅ AbheePay server running on http://localhost:${PORT}`);
+async function bootServer() {
+    await (0, runtimeSchema_service_1.ensureRuntimeSchema)();
+    (0, branchxPayoutSync_1.startBranchxPayoutSyncJob)();
+    app.listen(PORT, () => {
+        console.log(`✅ AbheePay server running on http://localhost:${PORT}`);
+    });
+}
+bootServer().catch((error) => {
+    console.error('Failed to start server', error);
+    process.exit(1);
 });

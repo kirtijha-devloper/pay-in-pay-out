@@ -31,6 +31,8 @@ model User {
 
   profile          Profile?
   wallet           Wallet?
+  transactionPinHash String?
+  transactionPinUpdatedAt DateTime?
 
   // Hierarchy bindings
   children         User[]   @relation("UserHierarchy")
@@ -182,6 +184,7 @@ model ServiceRequest {
   amount           Decimal? @db.Decimal(15,2)
   chargeAmount     Decimal? @db.Decimal(15,2)
   creditedAmount   Decimal? @db.Decimal(15,2)
+  chargeDistribution String?
   bankRef          String?
   paymentDate      DateTime?
   paymentMode      String?

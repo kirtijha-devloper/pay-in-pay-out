@@ -7,4 +7,5 @@ const router = (0, express_1.Router)();
 router.post('/login', auth_controller_1.login);
 router.get('/me', auth_1.authenticate, auth_controller_1.getMe);
 router.patch('/change-password', auth_1.authenticate, auth_controller_1.changePassword);
+router.patch('/transaction-pin', auth_1.authenticate, auth_controller_1.changeTransactionPin);
 exports.default = router;
