@@ -170,6 +170,15 @@ export const submitFundRequest = async (req: AuthRequest, res: Response) => {
   const receiptFile = (req as any).file as Express.Multer.File | undefined;
 
   try {
+    const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+    if (!user || user.kycStatus !== 'VERIFIED') {
+      res.status(403).json({
+        success: false,
+        message: 'KYC not verified. Please contact admin to verify your documents.',
+      });
+      return;
+    }
+
     if (!bankAccountId) {
       res.status(400).json({ success: false, message: 'Please select a company bank account' });
       return;
@@ -404,6 +413,15 @@ export const submitPayout = async (req: AuthRequest, res: Response) => {
   const userId = req.user!.id;
 
   try {
+    const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+    if (!user || user.kycStatus !== 'VERIFIED') {
+      res.status(403).json({
+        success: false,
+        message: 'KYC not verified. Please contact admin to verify your documents.',
+      });
+      return;
+    }
+
     const charge = await resolveCharge(userId, 'PAYOUT', amount);
     const total = amount + charge;
     const wallet = await prisma.wallet.findUnique({ where: { userId } });

@@ -9,6 +9,7 @@ import {
   updateUser,
   updateProfile,
   deleteUser,
+  updateKycStatus,
 } from '../controllers/user.controller';
 import { loginAs } from '../controllers/auth.controller';
 import { authenticate, authorize } from '../middleware/auth';
@@ -44,6 +45,7 @@ router.post('/:id/login-as', authorize('ADMIN'), (req, res) => {
   (req as any).body = { ...(req as any).body, userId: req.params.id };
   loginAs(req, res);
 });
+router.patch('/:id/kyc', authorize('ADMIN'), updateKycStatus);
 router.delete('/:id', authorize('ADMIN'), deleteUser);
 
 export default router;

@@ -11,6 +11,8 @@ import BankVerify from './pages/BankVerify';
 import Payout from './pages/Payout';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import FundRequests from './pages/FundRequests';
+import KycVerification from './pages/KycVerification';
 
 // Placeholder Pages
 const Placeholder = ({ title }) => (
@@ -31,7 +33,8 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/users" element={<UserManagement />} />
             <Route path="/wallet" element={<Wallet />} />
-            <Route path="/funds" element={<Wallet />} />
+            <Route path="/funds" element={<FundRequests />} />
+            <Route path="/kyc-verification" element={<KycVerification />} />
             <Route path="/bank-verify" element={<BankVerify />} />
             <Route path="/payout" element={<Payout />} />
             <Route path="/commissions" element={<Commissions />} />

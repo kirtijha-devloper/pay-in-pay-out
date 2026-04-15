@@ -20,12 +20,19 @@ enum RequestStatus {
   FAILED
 }
 
+enum KycStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
 model User {
   id               String   @id @default(uuid())
   email            String   @unique
   passwordHash     String
   role             Role     @default(RETAILER)
   isActive         Boolean  @default(true)
+  kycStatus        KycStatus @default(PENDING)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

@@ -322,3 +322,24 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+export const updateKycStatus = async (req: AuthRequest, res: Response) => {
+  const { status } = req.body;
+  const targetUserId = req.params.id as string;
+
+  if (req.user!.role !== 'ADMIN') {
+    res.status(403).json({ success: false, message: 'Only admins can update KYC status' });
+    return;
+  }
+
+  try {
+    const updated = await prisma.user.update({
+      where: { id: targetUserId },
+      data: { kycStatus: status },
+    });
+
+    res.json({ success: true, kycStatus: updated.kycStatus });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
