@@ -11,7 +11,16 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem('token');
+      const url = new URL(window.location.href);
+      const impersonationToken = url.searchParams.get('impersonationToken');
+
+      if (impersonationToken) {
+        sessionStorage.setItem('token', impersonationToken);
+        url.searchParams.delete('impersonationToken');
+        window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+      }
+
+      const token = sessionStorage.getItem('token') || localStorage.getItem('token');
       if (token) {
         try {
           const { data } = await api.get('/auth/me');
@@ -19,9 +28,11 @@ export const AuthProvider = ({ children }) => {
             setUser(data.user);
           } else {
             localStorage.removeItem('token');
+            sessionStorage.removeItem('token');
           }
         } catch {
           localStorage.removeItem('token');
+          sessionStorage.removeItem('token');
         }
       }
       setLoading(false);
@@ -32,6 +43,8 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const { data } = await api.post('/auth/login', { email, password });
     if (data.success) {
+      // Normal sign-ins should use shared persistent auth.
+      sessionStorage.removeItem('token');
       localStorage.setItem('token', data.token);
       setUser(data.user);
       return { success: true };
@@ -41,6 +54,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
     setUser(null);
   };
 

@@ -31,6 +31,78 @@ async function main() {
             wallet: { create: { balance: 0 } },
         },
     });
+    // Mocked users
+    const mockUsers = [
+        {
+            email: 'super1@abheepay.com',
+            role: 'SUPER',
+            ownerName: 'Rajesh Kumar',
+            shopName: 'RK Super Distributors',
+            mobileNumber: '9876543210',
+            state: 'Delhi',
+            balance: 50000,
+        },
+        {
+            email: 'distributor1@abheepay.com',
+            role: 'DISTRIBUTOR',
+            ownerName: 'Priya Singh',
+            shopName: 'Prime Distribution Hub',
+            mobileNumber: '9765432109',
+            state: 'Karnataka',
+            balance: 25000,
+        },
+        {
+            email: 'retailer1@abheepay.com',
+            role: 'RETAILER',
+            ownerName: 'Amit Patel',
+            shopName: 'Amit General Store',
+            mobileNumber: '9654321098',
+            state: 'Gujarat',
+            balance: 10000,
+        },
+        {
+            email: 'retailer2@abheepay.com',
+            role: 'RETAILER',
+            ownerName: 'Neha Gupta',
+            shopName: 'Neha Mobile Store',
+            mobileNumber: '9543210987',
+            state: 'Rajasthan',
+            balance: 15000,
+        },
+        {
+            email: 'distributor2@abheepay.com',
+            role: 'DISTRIBUTOR',
+            ownerName: 'Vikram Sharma',
+            shopName: 'Vikram Enterprises',
+            mobileNumber: '9432109876',
+            state: 'Punjab',
+            balance: 35000,
+        },
+    ];
+    for (const user of mockUsers) {
+        await prisma.user.upsert({
+            where: { email: user.email },
+            update: {},
+            create: {
+                email: user.email,
+                passwordHash,
+                role: user.role,
+                parentId: admin.id,
+                profile: {
+                    create: {
+                        ownerName: user.ownerName,
+                        shopName: user.shopName,
+                        mobileNumber: user.mobileNumber,
+                        fullAddress: 'Address pending',
+                        state: user.state,
+                        pinCode: '000000',
+                        aadhaarNumber: '0000000000000000',
+                    },
+                },
+                wallet: { create: { balance: user.balance } },
+            },
+        });
+    }
     // Default commission slabs
     await prisma.commissionSlab.createMany({
         skipDuplicates: true,
@@ -45,6 +117,12 @@ async function main() {
         ],
     });
     console.log(`✅ Admin created: admin@abheepay.com / admin123`);
+    console.log(`✅ 5 mocked users created (password: admin123)`);
+    console.log(`  - super1@abheepay.com (SUPER)`);
+    console.log(`  - distributor1@abheepay.com (DISTRIBUTOR)`);
+    console.log(`  - retailer1@abheepay.com (RETAILER)`);
+    console.log(`  - retailer2@abheepay.com (RETAILER)`);
+    console.log(`  - distributor2@abheepay.com (DISTRIBUTOR)`);
     console.log('✅ Default commission slabs inserted');
 }
 main()

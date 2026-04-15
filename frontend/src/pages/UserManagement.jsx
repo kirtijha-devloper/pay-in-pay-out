@@ -356,9 +356,11 @@ export default function UserManagement() {
     try {
       const { data } = await api.post(`/users/${userId}/login-as`);
       if (data.success && data.token) {
-        // Store the new token and redirect
-        localStorage.setItem('authToken', data.token);
-        window.location.href = '/dashboard';
+        const loginAsUrl = `${window.location.origin}/?impersonationToken=${encodeURIComponent(data.token)}`;
+        const newTab = window.open(loginAsUrl, '_blank', 'noopener,noreferrer');
+        if (!newTab) {
+          alert('Popup blocked by browser. Please allow popups and try again.');
+        }
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to login as user');
