@@ -180,11 +180,11 @@ export function normalizeBranchxStatus(payload: any): BranchxStatus {
     return 'SUCCESS';
   }
 
-  if (['FAILED', 'FAILURE', 'REJECTED', 'CANCELLED', 'REVERSED'].includes(status)) {
+  if (['FAILED', 'FAILURE', 'REJECTED', 'CANCELLED', 'REVERSED', 'REFUND'].includes(status)) {
     return 'FAILED';
   }
 
-  if (['PENDING', 'PROCESSING', 'IN_PROGRESS'].includes(status)) {
+  if (['PENDING', 'PROCESSING', 'IN_PROGRESS', 'TUP', 'ACCEPTED'].includes(status)) {
     return 'PENDING';
   }
 
@@ -192,11 +192,11 @@ export function normalizeBranchxStatus(payload: any): BranchxStatus {
     return 'SUCCESS';
   }
 
-  if (!status && ['FAILED', 'FAILURE', 'REJECTED', 'CANCELLED', 'REVERSED'].includes(statusCode)) {
+  if (!status && ['FAILED', 'FAILURE', 'REJECTED', 'CANCELLED', 'REVERSED', 'REFUND'].includes(statusCode)) {
     return 'FAILED';
   }
 
-  if (!status && ['PENDING', 'PROCESSING', 'IN_PROGRESS', '200', 'OK'].includes(statusCode)) {
+  if (!status && ['PENDING', 'PROCESSING', 'IN_PROGRESS', 'TUP', 'ACCEPTED', '200', 'OK'].includes(statusCode)) {
     return 'PENDING';
   }
 

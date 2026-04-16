@@ -16,6 +16,7 @@ import {
   submitPayout,
   getServiceRequests,
 } from '../controllers/service.controller';
+import { getBranchxCallbackIps } from '../controllers/branchx.controller';
 import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
@@ -62,5 +63,6 @@ router.post('/bank-verify', verifyBankCached);
 router.get('/payout/quote', getPayoutQuote);
 router.get('/payout/beneficiaries', getVerifiedBankBeneficiaries);
 router.post('/payout', submitPayout);
+router.get('/payout/callback-ips', authorize('ADMIN'), getBranchxCallbackIps);
 
 export default router;

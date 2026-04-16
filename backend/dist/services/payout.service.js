@@ -7,6 +7,8 @@ exports.getPayoutQuote = getPayoutQuote;
 exports.finalizePayoutSettlement = finalizePayoutSettlement;
 exports.submitPayoutRequest = submitPayoutRequest;
 exports.syncPendingPayouts = syncPendingPayouts;
+exports.processBranchxPayoutCallback = processBranchxPayoutCallback;
+exports.listBranchxCallbackIps = listBranchxCallbackIps;
 const client_1 = require("@prisma/client");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const crypto_1 = require("crypto");
@@ -31,6 +33,68 @@ function normalizeBoolean(value) {
 }
 function buildRequestId() {
     return `BXP-${Date.now()}-${(0, crypto_1.randomUUID)().slice(0, 8).toUpperCase()}`;
+}
+function stringifyPayload(value) {
+    if (value === undefined) {
+        return null;
+    }
+    if (typeof value === 'string') {
+        return value;
+    }
+    try {
+        return JSON.stringify(value);
+    }
+    catch {
+        return String(value);
+    }
+}
+function normalizeIp(value) {
+    const text = normalizeText(value);
+    if (!text) {
+        return 'unknown';
+    }
+    return text.replace(/^::ffff:/i, '');
+}
+function extractCallbackIdentifier(payload, keys) {
+    for (const key of keys) {
+        const value = payload[key];
+        if (value === undefined || value === null) {
+            continue;
+        }
+        const normalized = normalizeText(value);
+        if (normalized) {
+            return normalized;
+        }
+    }
+    return null;
+}
+function extractBranchxCallbackIdentifiers(payload) {
+    const requestId = extractCallbackIdentifier(payload, ['requestId', 'requestid']);
+    const opRefId = extractCallbackIdentifier(payload, ['opRefId', 'oprefid']);
+    const apiTxnId = extractCallbackIdentifier(payload, ['apiTxnId', 'apitxnid']);
+    const fallbackRequestId = requestId || opRefId || apiTxnId || null;
+    return {
+        requestId,
+        opRefId,
+        apiTxnId,
+        fallbackRequestId,
+    };
+}
+function extractBranchxCallbackStatus(payload) {
+    return normalizeText(payload.status ??
+        payload.Status ??
+        payload.data?.status ??
+        payload.data?.Status);
+}
+async function persistPayoutProviderResponse(requestId, providerStatus, providerStatusCode, providerResponse) {
+    await prisma_1.default.serviceRequest.update({
+        where: { id: requestId },
+        data: {
+            providerStatus,
+            providerStatusCode: providerStatusCode || null,
+            providerResponse: stringifyPayload(providerResponse),
+        },
+    });
 }
 function parseChargeDistribution(raw) {
     if (!raw) {
@@ -289,21 +353,8 @@ async function submitPayoutRequest(userId, input) {
             emailId: user.email,
             purpose: normalizeText(input.remark) || 'Payout',
         });
-        if (providerResponse.status === 'SUCCESS') {
-            const finalResult = await finalizePayoutSettlement(pendingRequest.id, 'SUCCESS', providerResponse.raw, 'BRANCHX_INIT');
-            return {
-                success: true,
-                status: 'SUCCESS',
-                message: 'Payout request processed successfully',
-                requestId,
-                request: pendingRequest,
-                charge: quote.charge,
-                netAmount: quote.netAmount,
-                providerResponse: providerResponse.raw,
-                settlement: finalResult,
-            };
-        }
         if (providerResponse.status === 'FAILED') {
+            await persistPayoutProviderResponse(pendingRequest.id, providerResponse.status, providerResponse.statusCode, providerResponse.raw);
             const finalResult = await finalizePayoutSettlement(pendingRequest.id, 'FAILED', providerResponse.raw, 'BRANCHX_INIT');
             return {
                 success: false,
@@ -317,10 +368,11 @@ async function submitPayoutRequest(userId, input) {
                 settlement: finalResult,
             };
         }
+        await persistPayoutProviderResponse(pendingRequest.id, providerResponse.status, providerResponse.statusCode, providerResponse.raw);
         return {
             success: true,
             status: 'PENDING',
-            message: 'Payout request submitted and is pending',
+            message: 'Payout request submitted and is pending callback or status check',
             requestId,
             request: pendingRequest,
             charge: quote.charge,
@@ -329,6 +381,17 @@ async function submitPayoutRequest(userId, input) {
         };
     }
     catch (error) {
+        try {
+            await persistPayoutProviderResponse(pendingRequest.id, 'FAILED', error?.statusCode ? String(error.statusCode) : 'ERROR', {
+                message: error instanceof Error ? error.message : 'BranchX payout request failed',
+            });
+        }
+        catch (metadataError) {
+            console.warn('[BranchX] payout_initiation_metadata_error', {
+                requestId: pendingRequest.id,
+                error: metadataError instanceof Error ? metadataError.message : String(metadataError),
+            });
+        }
         const settled = await finalizePayoutSettlement(pendingRequest.id, 'FAILED', error instanceof Error ? { message: error.message } : { message: 'BranchX payout request failed' }, 'BRANCHX_INIT_ERROR');
         const statusCode = error?.statusCode || 502;
         const message = error instanceof Error ? error.message : 'BranchX payout request failed and the reserved amount was refunded';
@@ -381,4 +444,101 @@ async function syncPendingPayouts() {
         }
     }
     return results;
+}
+async function processBranchxPayoutCallback(payload, meta) {
+    const normalizedStatus = (0, branchx_service_1.normalizeBranchxStatus)(payload);
+    const rawStatus = extractBranchxCallbackStatus(payload) || null;
+    const identifiers = extractBranchxCallbackIdentifiers(payload);
+    const candidateIds = [identifiers.requestId, identifiers.opRefId, identifiers.apiTxnId].filter((value) => Boolean(value));
+    const requestIdentifier = identifiers.fallbackRequestId;
+    const audit = await prisma_1.default.branchxCallbackAudit.create({
+        data: {
+            requestIdentifier,
+            sourceIp: normalizeIp(meta.sourceIp),
+            forwardedFor: meta.forwardedFor || null,
+            method: normalizeText(meta.method).toUpperCase() || 'UNKNOWN',
+            rawStatus,
+            normalizedStatus,
+            payload: stringifyPayload(payload),
+            userAgent: meta.userAgent || null,
+        },
+    });
+    const request = candidateIds.length
+        ? await prisma_1.default.serviceRequest.findFirst({
+            where: {
+                serviceType: 'PAYOUT',
+                bankRef: { in: candidateIds },
+            },
+            orderBy: { createdAt: 'desc' },
+        })
+        : null;
+    if (!request) {
+        console.warn('[BranchX] payout_callback_unmatched', {
+            requestIdentifier,
+            sourceIp: normalizeIp(meta.sourceIp),
+            normalizedStatus,
+            auditId: audit.id,
+        });
+        return {
+            accepted: true,
+            matched: false,
+            finalized: false,
+            normalizedStatus,
+            auditId: audit.id,
+            requestId: requestIdentifier,
+        };
+    }
+    await prisma_1.default.branchxCallbackAudit.update({
+        where: { id: audit.id },
+        data: { serviceRequestId: request.id },
+    });
+    const currentStatus = normalizeText(request.callbackStatus).toUpperCase();
+    const shouldPersistMetadata = !currentStatus || !['SUCCESS', 'FAILED'].includes(currentStatus);
+    if (shouldPersistMetadata) {
+        await prisma_1.default.serviceRequest.update({
+            where: { id: request.id },
+            data: {
+                callbackStatus: normalizedStatus,
+                callbackData: stringifyPayload(payload),
+                callbackReceivedAt: new Date(),
+                callbackRequestId: identifiers.requestId,
+                callbackOpRefId: identifiers.opRefId,
+                callbackApiTxnId: identifiers.apiTxnId,
+            },
+        });
+    }
+    if (normalizedStatus === 'SUCCESS' || normalizedStatus === 'FAILED') {
+        const settlement = await finalizePayoutSettlement(request.id, normalizedStatus, payload, 'CALLBACK');
+        return {
+            accepted: true,
+            matched: true,
+            finalized: !settlement.skipped,
+            normalizedStatus,
+            auditId: audit.id,
+            requestId: request.bankRef || requestIdentifier,
+        };
+    }
+    return {
+        accepted: true,
+        matched: true,
+        finalized: false,
+        normalizedStatus,
+        auditId: audit.id,
+        requestId: request.bankRef || requestIdentifier,
+    };
+}
+async function listBranchxCallbackIps() {
+    const rows = await prisma_1.default.branchxCallbackAudit.groupBy({
+        by: ['sourceIp'],
+        _count: { sourceIp: true },
+        _min: { createdAt: true },
+        _max: { createdAt: true },
+        orderBy: { _max: { createdAt: 'desc' } },
+    });
+    return rows.map((row) => ({
+        sourceIp: row.sourceIp,
+        count: row._count.sourceIp,
+        firstSeenAt: row._min.createdAt,
+        lastSeenAt: row._max.createdAt,
+    }));
 }

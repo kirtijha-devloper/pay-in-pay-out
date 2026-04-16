@@ -132,19 +132,19 @@ function normalizeBranchxStatus(payload) {
     if (['SUCCESS', 'COMPLETED'].includes(status)) {
         return 'SUCCESS';
     }
-    if (['FAILED', 'FAILURE', 'REJECTED', 'CANCELLED', 'REVERSED'].includes(status)) {
+    if (['FAILED', 'FAILURE', 'REJECTED', 'CANCELLED', 'REVERSED', 'REFUND'].includes(status)) {
         return 'FAILED';
     }
-    if (['PENDING', 'PROCESSING', 'IN_PROGRESS'].includes(status)) {
+    if (['PENDING', 'PROCESSING', 'IN_PROGRESS', 'TUP', 'ACCEPTED'].includes(status)) {
         return 'PENDING';
     }
     if (!status && (statusCode === 'TXN' || ['SUCCESS', 'COMPLETED'].includes(statusCode))) {
         return 'SUCCESS';
     }
-    if (!status && ['FAILED', 'FAILURE', 'REJECTED', 'CANCELLED', 'REVERSED'].includes(statusCode)) {
+    if (!status && ['FAILED', 'FAILURE', 'REJECTED', 'CANCELLED', 'REVERSED', 'REFUND'].includes(statusCode)) {
         return 'FAILED';
     }
-    if (!status && ['PENDING', 'PROCESSING', 'IN_PROGRESS', '200', 'OK'].includes(statusCode)) {
+    if (!status && ['PENDING', 'PROCESSING', 'IN_PROGRESS', 'TUP', 'ACCEPTED', '200', 'OK'].includes(statusCode)) {
         return 'PENDING';
     }
     if (['400', '401', '403', '404', '422', '500'].includes(statusCode)) {

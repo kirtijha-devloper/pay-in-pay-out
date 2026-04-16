@@ -192,6 +192,15 @@ model ServiceRequest {
   chargeAmount     Decimal? @db.Decimal(15,2)
   creditedAmount   Decimal? @db.Decimal(15,2)
   chargeDistribution String?
+  providerStatus   String?
+  providerStatusCode String?
+  providerResponse String?
+  callbackStatus   String?
+  callbackData     String?
+  callbackReceivedAt DateTime?
+  callbackRequestId String?
+  callbackOpRefId  String?
+  callbackApiTxnId String?
   bankRef          String?
   paymentDate      DateTime?
   paymentMode      String?
@@ -213,8 +222,27 @@ model ServiceRequest {
   rejectedAt       DateTime?
 
   walletTransactions WalletTransaction[] @relation("ServiceRequestWalletTransactions")
+  branchxCallbackAudits BranchxCallbackAudit[]
 
   status           RequestStatus @default(PENDING)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+model BranchxCallbackAudit {
+  id               String   @id @default(uuid())
+  serviceRequest   ServiceRequest? @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
+  serviceRequestId String?
+  requestIdentifier String?
+  sourceIp         String
+  forwardedFor     String?
+  method           String
+  rawStatus        String?
+  normalizedStatus String?
+  payload          String?
+  userAgent        String?
+  createdAt        DateTime @default(now())
+
+  @@index([sourceIp, createdAt])
+  @@index([serviceRequestId, createdAt])
 }
