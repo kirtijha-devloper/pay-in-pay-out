@@ -30,8 +30,7 @@ async function creditWallet(tx, userId, amount, description, senderId, serviceRe
         },
     });
 }
-async function distributeFundRequestCharge(tx, requestUserId, amount, serviceRequestId) {
-    const shares = await (0, commission_service_1.buildChargeDistribution)(requestUserId, 'FUND_REQUEST', amount);
+async function distributeFundRequestCharge(tx, requestUserId, shares, serviceRequestId) {
     for (const share of shares) {
         await creditWallet(tx, share.receiverId, share.amount, 'Fund request commission', requestUserId, serviceRequestId);
     }
@@ -142,7 +141,7 @@ const submitFundRequest = async (req, res) => {
         if (!user || user.kycStatus !== 'VERIFIED') {
             res.status(403).json({
                 success: false,
-                message: 'KYC not verified. Please contact admin to verify your documents.',
+                message: 'KYC not verified. Please submit your KYC request from the KYC Verification page first.',
             });
             return;
         }
@@ -205,6 +204,7 @@ const approveFundRequest = async (req, res) => {
             res.status(400).json({ success: false, message: 'Resolved charge cannot exceed the request amount' });
             return;
         }
+        const shares = await (0, commission_service_1.buildChargeDistribution)(request.userId, 'FUND_REQUEST', grossAmount);
         await prisma_1.default.$transaction(async (tx) => {
             await tx.serviceRequest.update({
                 where: { id },
@@ -217,7 +217,7 @@ const approveFundRequest = async (req, res) => {
                 },
             });
             await creditWallet(tx, request.userId, creditedAmount.toNumber(), 'Wallet top-up approved', request.userId, id);
-            await distributeFundRequestCharge(tx, request.userId, grossAmount, id);
+            await distributeFundRequestCharge(tx, request.userId, shares, id);
         });
         res.json({
             success: true,

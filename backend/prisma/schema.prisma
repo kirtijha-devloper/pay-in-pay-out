@@ -51,6 +51,8 @@ model User {
   transactionsRecv WalletTransaction[] @relation("Receiver")
   approvedServiceRequests ServiceRequest[] @relation("ServiceRequestApprovedBy")
   rejectedServiceRequests ServiceRequest[] @relation("ServiceRequestRejectedBy")
+  kycRequests        KycRequest[]
+  kycRequestsReviewed KycRequest[] @relation("KycRequestReviewedBy")
   companyBankAccountsCreated CompanyBankAccount[] @relation("CompanyBankAccountCreatedBy")
   companyBankAccountsUpdated CompanyBankAccount[] @relation("CompanyBankAccountUpdatedBy")
   payoutBeneficiaries PayoutBeneficiary[]
@@ -119,6 +121,28 @@ model CompanyBankAccount {
   updatedById    String?
 
   serviceRequests ServiceRequest[]
+}
+
+model KycRequest {
+  id               String   @id @default(uuid())
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           String
+  fullName         String
+  dateOfBirth      DateTime?
+  gender           String?
+  aadhaarNumber    String
+  panNumber        String?
+  kycPhotoPath     String?
+  status           String   @default("PENDING")
+  reviewedBy       User?    @relation("KycRequestReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedById     String?
+  reviewedAt       DateTime?
+  reviewRemark     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId, status, createdAt])
+  @@index([status, createdAt])
 }
 
 model BankVerificationFee {

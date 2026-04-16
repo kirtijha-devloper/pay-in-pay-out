@@ -3,7 +3,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateKycStatus = exports.updateProfile = exports.deleteUser = exports.updateUser = exports.toggleUserStatus = exports.getUserById = exports.getUsers = exports.createUser = void 0;
+exports.rejectKycRequest = exports.approveKycRequest = exports.getKycRequests = exports.getMyKycRequest = exports.submitKycRequest = exports.updateKycStatus = exports.updateProfile = exports.deleteUser = exports.updateUser = exports.toggleUserStatus = exports.getUserById = exports.getUsers = exports.createUser = void 0;
+const client_1 = require("@prisma/client");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const userHierarchy_service_1 = require("../services/userHierarchy.service");
@@ -22,6 +23,55 @@ const sanitizeUser = (user) => {
         children: children.map(sanitizeUser),
     };
 };
+const KYC_REQUEST_INCLUDE = {
+    user: {
+        select: {
+            id: true,
+            email: true,
+            role: true,
+            isActive: true,
+            kycStatus: true,
+            profile: {
+                select: {
+                    ownerName: true,
+                    shopName: true,
+                    mobileNumber: true,
+                    aadhaarNumber: true,
+                },
+            },
+        },
+    },
+    reviewedBy: {
+        select: {
+            id: true,
+            email: true,
+            role: true,
+        },
+    },
+};
+function normalizeKycStatus(status) {
+    const value = String(status || '').toUpperCase();
+    if (value === 'VERIFIED')
+        return client_1.KycStatus.VERIFIED;
+    if (value === 'REJECTED')
+        return client_1.KycStatus.REJECTED;
+    return client_1.KycStatus.PENDING;
+}
+function serializeKycRequest(request) {
+    if (!request)
+        return null;
+    let dateOfBirth = '';
+    if (request.dateOfBirth) {
+        const parsedDate = new Date(request.dateOfBirth);
+        dateOfBirth = Number.isNaN(parsedDate.getTime())
+            ? String(request.dateOfBirth)
+            : parsedDate.toISOString().slice(0, 10);
+    }
+    return {
+        ...request,
+        dateOfBirth,
+    };
+}
 const createUser = async (req, res) => {
     const { email, password, role, ownerName, shopName, mobileNumber, fullAddress, state, pinCode, aadhaarNumber, } = req.body;
     const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
@@ -294,3 +344,202 @@ const updateKycStatus = async (req, res) => {
     }
 };
 exports.updateKycStatus = updateKycStatus;
+const submitKycRequest = async (req, res) => {
+    const { fullName, dateOfBirth, gender, aadhaarNumber, panNumber } = req.body;
+    const photoFile = req.file;
+    try {
+        const currentUser = await prisma_1.default.user.findUnique({
+            where: { id: req.user.id },
+            select: { id: true, kycStatus: true },
+        });
+        if (!currentUser) {
+            res.status(404).json({ success: false, message: 'User not found' });
+            return;
+        }
+        if (currentUser.kycStatus === client_1.KycStatus.VERIFIED) {
+            res.status(409).json({ success: false, message: 'KYC is already verified' });
+            return;
+        }
+        if (!fullName || !dateOfBirth || !gender || !aadhaarNumber || !panNumber) {
+            res.status(400).json({
+                success: false,
+                message: 'Full name, date of birth, gender, Aadhaar number, and PAN number are required',
+            });
+            return;
+        }
+        const parsedDateOfBirth = new Date(dateOfBirth);
+        if (Number.isNaN(parsedDateOfBirth.getTime())) {
+            res.status(400).json({ success: false, message: 'Date of birth must be a valid date' });
+            return;
+        }
+        const normalizedGender = String(gender).trim().toUpperCase();
+        if (!['MALE', 'FEMALE', 'OTHER'].includes(normalizedGender)) {
+            res.status(400).json({ success: false, message: 'Gender must be MALE, FEMALE, or OTHER' });
+            return;
+        }
+        const existingPending = await prisma_1.default.kycRequest.findFirst({
+            where: {
+                userId: req.user.id,
+                status: client_1.KycStatus.PENDING,
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+        if (existingPending) {
+            res.status(409).json({
+                success: false,
+                message: 'You already have a pending KYC request',
+                request: serializeKycRequest(existingPending),
+            });
+            return;
+        }
+        const request = await prisma_1.default.$transaction(async (tx) => {
+            const created = await tx.kycRequest.create({
+                data: {
+                    userId: req.user.id,
+                    fullName: String(fullName).trim(),
+                    dateOfBirth: parsedDateOfBirth,
+                    gender: normalizedGender,
+                    aadhaarNumber: String(aadhaarNumber).trim(),
+                    panNumber: String(panNumber).trim().toUpperCase(),
+                    kycPhotoPath: photoFile?.path,
+                    status: client_1.KycStatus.PENDING,
+                },
+                include: KYC_REQUEST_INCLUDE,
+            });
+            await tx.user.update({
+                where: { id: req.user.id },
+                data: { kycStatus: client_1.KycStatus.PENDING },
+            });
+            return created;
+        });
+        res.status(201).json({
+            success: true,
+            message: 'KYC request submitted for admin review',
+            request: serializeKycRequest(request),
+        });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+exports.submitKycRequest = submitKycRequest;
+const getMyKycRequest = async (req, res) => {
+    try {
+        const requests = await prisma_1.default.kycRequest.findMany({
+            where: { userId: req.user.id },
+            include: KYC_REQUEST_INCLUDE,
+            orderBy: { createdAt: 'desc' },
+        });
+        res.json({
+            success: true,
+            requests: requests.map(serializeKycRequest),
+            request: serializeKycRequest(requests[0] || null),
+        });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+exports.getMyKycRequest = getMyKycRequest;
+const getKycRequests = async (req, res) => {
+    try {
+        const status = req.query.status;
+        const where = {};
+        if (status) {
+            where.status = normalizeKycStatus(status);
+        }
+        const requests = await prisma_1.default.kycRequest.findMany({
+            where,
+            include: KYC_REQUEST_INCLUDE,
+            orderBy: { createdAt: 'desc' },
+        });
+        res.json({
+            success: true,
+            requests: requests.map(serializeKycRequest),
+        });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+exports.getKycRequests = getKycRequests;
+async function reviewKycRequest(req, res, status) {
+    const id = req.params.id;
+    const reviewRemark = String(req.body?.reviewRemark || req.body?.remark || '').trim();
+    try {
+        const request = await prisma_1.default.kycRequest.findUnique({
+            where: { id },
+            include: {
+                user: { include: { profile: true } },
+            },
+        });
+        if (!request) {
+            res.status(404).json({ success: false, message: 'KYC request not found' });
+            return;
+        }
+        if (request.status !== client_1.KycStatus.PENDING) {
+            res.status(400).json({ success: false, message: 'This KYC request has already been reviewed' });
+            return;
+        }
+        const updated = await prisma_1.default.$transaction(async (tx) => {
+            const savedRequest = await tx.kycRequest.update({
+                where: { id },
+                data: {
+                    status,
+                    reviewedById: req.user.id,
+                    reviewedAt: new Date(),
+                    reviewRemark: reviewRemark || null,
+                },
+            });
+            await tx.user.update({
+                where: { id: request.userId },
+                data: {
+                    kycStatus: status,
+                },
+            });
+            if (status === client_1.KycStatus.VERIFIED) {
+                await tx.profile.upsert({
+                    where: { userId: request.userId },
+                    create: {
+                        userId: request.userId,
+                        ownerName: request.fullName,
+                        shopName: request.user.profile?.shopName || request.fullName,
+                        mobileNumber: request.user.profile?.mobileNumber || request.user.email || request.userId,
+                        fullAddress: request.user.profile?.fullAddress || '-',
+                        state: request.user.profile?.state || '-',
+                        pinCode: request.user.profile?.pinCode || '-',
+                        aadhaarNumber: request.aadhaarNumber,
+                    },
+                    update: {
+                        ownerName: request.fullName,
+                        aadhaarNumber: request.aadhaarNumber,
+                    },
+                });
+            }
+            return tx.kycRequest.findUnique({
+                where: { id },
+                include: KYC_REQUEST_INCLUDE,
+            });
+        });
+        res.json({
+            success: true,
+            message: status === client_1.KycStatus.VERIFIED ? 'KYC approved' : 'KYC rejected',
+            request: serializeKycRequest(updated),
+        });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+}
+const approveKycRequest = async (req, res) => {
+    await reviewKycRequest(req, res, client_1.KycStatus.VERIFIED);
+};
+exports.approveKycRequest = approveKycRequest;
+const rejectKycRequest = async (req, res) => {
+    await reviewKycRequest(req, res, client_1.KycStatus.REJECTED);
+};
+exports.rejectKycRequest = rejectKycRequest;

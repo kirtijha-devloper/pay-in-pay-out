@@ -10,6 +10,11 @@ import {
   updateProfile,
   deleteUser,
   updateKycStatus,
+  approveKycRequest,
+  getKycRequests,
+  getMyKycRequest,
+  rejectKycRequest,
+  submitKycRequest,
 } from '../controllers/user.controller';
 import { loginAs } from '../controllers/auth.controller';
 import { authenticate, authorize } from '../middleware/auth';
@@ -21,6 +26,24 @@ const storage = multer.diskStorage({
   },
 });
 const upload = multer({ storage });
+const kycUpload = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    const extension = path.extname(file.originalname).toLowerCase();
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
+
+    if (allowedMimeTypes.includes(file.mimetype) || allowedExtensions.includes(extension)) {
+      cb(null, true);
+      return;
+    }
+
+    cb(new Error('Only image or PDF files are allowed'));
+  },
+  limits: {
+    fileSize: 8 * 1024 * 1024,
+  },
+});
 
 const router = Router();
 
@@ -36,6 +59,11 @@ router.post(
   ]),
   createUser
 );
+router.get('/kyc/request', getMyKycRequest);
+router.post('/kyc/request', kycUpload.single('kycPhoto'), submitKycRequest);
+router.get('/kyc/requests', authorize('ADMIN'), getKycRequests);
+router.patch('/kyc/requests/:id/approve', authorize('ADMIN'), approveKycRequest);
+router.patch('/kyc/requests/:id/reject', authorize('ADMIN'), rejectKycRequest);
 router.get('/', getUsers);
 router.get('/:id', getUserById);
 router.patch('/profile', updateProfile);

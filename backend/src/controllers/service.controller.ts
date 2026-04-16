@@ -45,11 +45,9 @@ async function creditWallet(
 async function distributeFundRequestCharge(
   tx: any,
   requestUserId: string,
-  amount: Prisma.Decimal | string | number,
+  shares: Array<{ receiverId: string; amount: number }>,
   serviceRequestId: string
 ) {
-  const shares = await buildChargeDistribution(requestUserId, 'FUND_REQUEST', amount);
-
   for (const share of shares) {
     await creditWallet(
       tx,
@@ -175,7 +173,7 @@ export const submitFundRequest = async (req: AuthRequest, res: Response) => {
     if (!user || user.kycStatus !== 'VERIFIED') {
       res.status(403).json({
         success: false,
-        message: 'KYC not verified. Please contact admin to verify your documents.',
+        message: 'KYC not verified. Please submit your KYC request from the KYC Verification page first.',
       });
       return;
     }
@@ -245,6 +243,8 @@ export const approveFundRequest = async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    const shares = await buildChargeDistribution(request.userId, 'FUND_REQUEST', grossAmount);
+
     await prisma.$transaction(async (tx) => {
       await tx.serviceRequest.update({
         where: { id },
@@ -266,7 +266,7 @@ export const approveFundRequest = async (req: AuthRequest, res: Response) => {
         id
       );
 
-      await distributeFundRequestCharge(tx, request.userId, grossAmount, id);
+      await distributeFundRequestCharge(tx, request.userId, shares, id);
     });
 
     res.json({
