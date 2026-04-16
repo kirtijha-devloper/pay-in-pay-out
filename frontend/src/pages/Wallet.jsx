@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -101,8 +102,8 @@ function RequestModal({ isOpen, onClose, onSaved, bankAccounts }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl w-full max-w-2xl p-6">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl p-6">
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-xl font-bold">New Wallet Top-Up</h2>
@@ -115,7 +116,7 @@ function RequestModal({ isOpen, onClose, onSaved, bankAccounts }) {
 
         {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 mb-4">{error}</div>}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1 md:col-span-2">
               <label className="text-xs font-bold uppercase text-gray-500">Amount</label>
@@ -342,8 +343,9 @@ function BankAccountModal({ isOpen, onClose, onSaved, initialData }) {
 
 export default function Wallet() {
   const { user, refreshUser } = useAuth();
-  const isAdmin = user.role === 'ADMIN';
-  const canCreateRequest = !isAdmin;
+  const isAdmin = user?.role === 'ADMIN';
+  const kycVerified = isAdmin || user?.kycStatus === 'VERIFIED';
+  const canCreateRequest = !isAdmin && kycVerified;
   const sectionTabs = [
     ...(isAdmin
       ? [{ id: 'bank-accounts', label: 'Company Bank Accounts' }]
@@ -442,6 +444,12 @@ export default function Wallet() {
           </p>
         </div>
 
+        {!isAdmin && !kycVerified && (
+          <Link to="/kyc-verification" className="btn btn-outline shadow-lg shadow-amber-100">
+            Complete KYC
+          </Link>
+        )}
+
         {canCreateRequest && (
           <button onClick={() => setIsRequestModalOpen(true)} className="btn btn-primary shadow-lg shadow-blue-200" type="button">
             <Plus size={18} /> New Request
@@ -456,6 +464,18 @@ export default function Wallet() {
       </div>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 mb-4">{error}</div>}
+
+      {!isAdmin && !kycVerified && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold text-amber-800">KYC approval is required before wallet top-ups</div>
+            <div className="text-xs text-amber-700">Submit your manual KYC request first. Once approved, the New Request button will appear here.</div>
+          </div>
+          <Link to="/kyc-verification" className="btn btn-primary btn-sm">
+            Go to KYC
+          </Link>
+        </div>
+      )}
 
       <div className="card p-4 mb-6">
         <div className="flex flex-wrap gap-2 items-center justify-between">

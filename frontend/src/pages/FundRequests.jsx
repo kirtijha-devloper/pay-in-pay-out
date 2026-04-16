@@ -87,8 +87,8 @@ function RequestModal({ isOpen, onClose, onSaved, bankAccounts }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-0 md:p-4">
-      <div className="bg-white rounded-t-2xl md:rounded-xl w-full max-w-2xl h-[95vh] md:h-auto md:max-h-[90vh] overflow-y-auto animate-slide-up md:animate-fade-in shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 md:items-center md:p-6">
+      <div className="my-4 w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl animate-slide-up md:animate-fade-in md:max-h-[90vh]">
         <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-gray-100 p-4 flex justify-between items-center z-10">
           <div>
             <h2 className="text-xl font-bold">New Fund Request</h2>
@@ -98,9 +98,10 @@ function RequestModal({ isOpen, onClose, onSaved, bankAccounts }) {
             <XCircle size={24} className="text-gray-400" />
           </button>
         </div>
-        {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 mb-4">{error}</div>}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="p-4 md:p-6">
+          {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-1 md:col-span-2">
               <label className="text-xs font-bold uppercase text-gray-500">Amount</label>
               <input type="number" min="0" step="0.01" required value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} placeholder="0.00" />
@@ -130,14 +131,15 @@ function RequestModal({ isOpen, onClose, onSaved, bankAccounts }) {
               <label className="text-xs font-bold uppercase text-gray-500">Receipt Image / PDF</label>
               <input type="file" required accept="image/*,.pdf" onChange={(e) => setReceiptFile(e.target.files?.[0] || null)} />
             </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="btn btn-outline" disabled={loading}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Submitting...' : 'Submit Request'}
-            </button>
-          </div>
-        </form>
+            </div>
+            <div className="flex justify-end gap-3 pt-3">
+              <button type="button" onClick={onClose} className="btn btn-outline" disabled={loading}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={loading}>
+                {loading ? 'Submitting...' : 'Submit Request'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
@@ -187,7 +189,7 @@ export default function FundRequests() {
   };
 
   return (
-    <div className="flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold">Fund Requests</h1>
@@ -256,7 +258,7 @@ export default function FundRequests() {
                     {isAdmin && (
                       <td className="sticky-col-right">
                         {r.status === 'PENDING' && (
-                          <div className="flex gap-2">
+                          <div className="flex items-center justify-end gap-3">
                             <button onClick={() => approveRequest(r.id)} className="btn btn-primary btn-sm bg-emerald-600 border-emerald-600">Approve</button>
                             <button onClick={() => rejectRequest(r.id)} className="btn btn-outline btn-sm text-red-600 border-red-200 hover:bg-red-50">Reject</button>
                           </div>

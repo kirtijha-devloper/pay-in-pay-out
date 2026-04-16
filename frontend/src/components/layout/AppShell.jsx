@@ -31,16 +31,13 @@ export default function AppShell() {
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Commissions', path: '/commissions', icon: Settings },
     { name: 'Wallet', path: '/wallet', icon: Wallet },
+    { name: 'KYC Verification', path: '/kyc-verification', icon: ShieldCheck },
     { name: 'Fund Requests', path: '/funds', icon: Banknote },
     { name: 'Bank Verification', path: '/bank-verify', icon: Building2 },
     { name: 'Payout', path: '/payout', icon: Send },
     { name: 'Reports', path: '/reports', icon: FileText },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
-
-  if (user.role === 'ADMIN') {
-    navLinks.splice(2, 0, { name: 'KYC Verification', path: '/kyc-verification', icon: ShieldCheck });
-  }
 
   if (['ADMIN', 'SUPER', 'DISTRIBUTOR'].includes(user.role)) {
     navLinks.splice(1, 0, { name: 'User Management', path: '/users', icon: Users });
