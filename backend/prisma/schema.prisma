@@ -76,6 +76,10 @@ model Profile {
   aadhaarFrontPath String?
   aadhaarBackPath  String?
   panCardPath      String?
+  bankName         String?
+  accountNumber    String?
+  accountName      String?
+  ifscCode         String?
 }
 
 model Wallet {

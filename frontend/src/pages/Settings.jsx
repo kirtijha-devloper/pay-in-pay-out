@@ -28,8 +28,13 @@ export default function Settings() {
   });
 
   const [bankData, setBankData] = useState({
-    bankName: '', accountName: '', accountNumber: '', ifscCode: ''
+    bankName: user.profile?.bankName || '',
+    accountName: user.profile?.accountName || '',
+    accountNumber: user.profile?.accountNumber || '',
+    ifscCode: user.profile?.ifscCode || '',
   });
+
+  const [bankTpin, setBankTpin] = useState('');
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
@@ -82,6 +87,26 @@ export default function Settings() {
       }
     } catch (err) {
       setMessage({ type: 'error', text: err.response?.data?.message || 'PIN update failed' });
+    }
+    setLoading(false);
+  };
+
+  const handleBankUpdate = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage(null);
+    try {
+      const { data } = await api.patch('/users/profile', {
+        ...bankData,
+        tpin: bankTpin,
+      });
+      if (data.success) {
+        setMessage({ type: 'success', text: 'Bank details updated successfully!' });
+        setBankTpin('');
+        await refreshUser();
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Update failed' });
     }
     setLoading(false);
   };
@@ -233,13 +258,52 @@ export default function Settings() {
           )}
 
           {activeTab === 'bank' && (
-            <div className="max-w-xl space-y-6">
+            <form onSubmit={handleBankUpdate} className="max-w-xl space-y-6">
               <h2 className="text-lg font-bold text-gray-900 border-b pb-2">Settlement Bank Details</h2>
-              <p className="text-sm text-gray-500">These details will be used for your own payout settlements.</p>
-              <div className="p-12 border-2 border-dashed border-gray-100 rounded-xl text-center text-gray-400 italic">
-                Bank detail management is currently disabled. Please contact Admin.
+              <p className="text-sm text-gray-500">
+                These details will be used for your own payout settlements. Please double check before saving.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold uppercase text-gray-500">Bank Name</label>
+                  <input type="text" placeholder="e.g. HDFC Bank" required value={bankData.bankName} onChange={e => setBankData({...bankData, bankName: e.target.value})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold uppercase text-gray-500">Account Holder Name</label>
+                  <input type="text" placeholder="As per bank passbook" required value={bankData.accountName} onChange={e => setBankData({...bankData, accountName: e.target.value})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold uppercase text-gray-500">Account Number</label>
+                  <input type="text" placeholder="Enter bank account number" required value={bankData.accountNumber} onChange={e => setBankData({...bankData, accountNumber: e.target.value})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold uppercase text-gray-500">IFSC Code</label>
+                  <input type="text" placeholder="e.g. HDFC0001234" required value={bankData.ifscCode} onChange={e => setBankData({...bankData, ifscCode: e.target.value.toUpperCase()})} />
+                </div>
               </div>
-            </div>
+
+              <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 flex gap-3 mt-4">
+                <AlertCircle className="text-amber-600 shrink-0" size={20} />
+                <div className="space-y-2">
+                  <p className="text-xs text-amber-800 font-medium">
+                    Please enter your Transaction PIN to authorize this change.
+                  </p>
+                  <input 
+                    type="password" 
+                    inputMode="numeric" 
+                    placeholder="Enter TPIN" 
+                    className="max-w-[120px] bg-white" 
+                    required 
+                    value={bankTpin} 
+                    onChange={e => setBankTpin(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <button type="submit" className="btn btn-primary px-8 mt-4" disabled={loading}>
+                {loading ? 'Verifying & Saving...' : 'Save Bank Details'}
+              </button>
+            </form>
           )}
         </div>
       </div>
