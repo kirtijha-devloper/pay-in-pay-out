@@ -1,4 +1,4 @@
-# AbheePay v2
+# payverse v2
 
 A full-stack role-based fintech dashboard for managing users, wallet operations, service requests, commissions, and reports.
 
@@ -28,7 +28,7 @@ This repository contains:
 ## Project Structure
 
 ```text
-abheepay_v2/
+payverse_v2/
   backend/
     src/
     prisma/
@@ -47,7 +47,7 @@ abheepay_v2/
 Create `backend/.env`:
 
 ```env
-DATABASE_URL="postgresql://postgres:password@localhost:5432/abheepay_v2?schema=public"
+DATABASE_URL="postgresql://postgres:password@localhost:5432/payverse_v2?schema=public"
 JWT_SECRET="replace_with_a_secure_secret"
 PORT=5000
 ```
@@ -104,12 +104,12 @@ npm run dev
 
 After `npm run seed` in `backend`:
 
-- `admin@abheepay.com` / `admin123`
-- `super1@abheepay.com` / `admin123`
-- `distributor1@abheepay.com` / `admin123`
-- `distributor2@abheepay.com` / `admin123`
-- `retailer1@abheepay.com` / `admin123`
-- `retailer2@abheepay.com` / `admin123`
+- `admin@payverse.com` / `admin123`
+- `super1@payverse.com` / `admin123`
+- `distributor1@payverse.com` / `admin123`
+- `distributor2@payverse.com` / `admin123`
+- `retailer1@payverse.com` / `admin123`
+- `retailer2@payverse.com` / `admin123`
 
 ## Scripts
 

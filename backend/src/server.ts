@@ -30,7 +30,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/payment/v2/payout/callback', branchxRoutes);
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'AbheePay API is running', timestamp: new Date() });
+  res.json({ status: 'OK', message: 'payverse API is running', timestamp: new Date() });
 });
 
 async function bootServer() {
@@ -38,7 +38,7 @@ async function bootServer() {
   startBranchxPayoutSyncJob();
 
   app.listen(PORT, () => {
-    console.log(`✅ AbheePay server running on http://localhost:${PORT}`);
+    console.log(`✅ payverse server running on http://localhost:${PORT}`);
   });
 }
 

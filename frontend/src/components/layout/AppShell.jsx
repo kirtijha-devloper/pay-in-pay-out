@@ -14,6 +14,7 @@ import {
   Settings,
   ShieldCheck,
   Banknote,
+  Coins,
 } from 'lucide-react';
 import './AppShell.css';
 
@@ -21,7 +22,7 @@ export default function AppShell() {
   const { user, logout, refreshUser } = useAuth();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const normalizedPath = location.pathname === '/funds' ? '/wallet' : location.pathname;
+  const normalizedPath = location.pathname;
 
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -29,7 +30,10 @@ export default function AppShell() {
 
   const navLinks = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Commissions', path: '/commissions', icon: Settings },
+    ...(user.role !== 'RETAILER' ? [
+      { name: 'Charges', path: '/commissions', icon: Settings },
+      { name: 'Commissions', path: '/commission-report', icon: Coins },
+    ] : []),
     { name: 'Wallet', path: '/wallet', icon: Wallet },
     { name: 'KYC Verification', path: '/kyc-verification', icon: ShieldCheck },
     { name: 'Fund Requests', path: '/funds', icon: Banknote },
@@ -40,11 +44,15 @@ export default function AppShell() {
   ];
 
   if (['ADMIN', 'SUPER', 'DISTRIBUTOR'].includes(user.role)) {
-    navLinks.splice(1, 0, { name: 'User Management', path: '/users', icon: Users });
+    // Insert User Management after Dashboard if it's missing or after Charges/Commissions
+    const insertIdx = user.role === 'RETAILER' ? 1 : 3;
+    navLinks.splice(insertIdx, 0, { name: 'User Management', path: '/users', icon: Users });
   }
 
   useEffect(() => {
     refreshUser();
+    const pageName = navLinks.find((l) => l.path === normalizedPath)?.name || 'Page';
+    document.title = `${pageName} | Payverse`;
   }, [location.pathname, refreshUser]);
 
   useEffect(() => {
@@ -65,8 +73,8 @@ export default function AppShell() {
       <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <div className="logo-area">
-            <div className="logo-circle">AP</div>
-            <span className="brand-name">AbheePay</span>
+            <div className="logo-circle">PV</div>
+            <span className="brand-name">Payverse</span>
           </div>
           <button className="mobile-close" onClick={() => setIsMobileMenuOpen(false)}>
             <X size={20} />
@@ -78,7 +86,9 @@ export default function AppShell() {
           <div className="user-info">
             <div className="user-name">{user.profile?.ownerName || 'Unknown User'}</div>
             <div className="user-role badge badge-primary">{user.role}</div>
-            <div className="user-wallet">₹ {Number(user.wallet?.balance || 0).toFixed(2)}</div>
+            { !['ADMIN', 'SUPER'].includes(user.role) && (
+              <div className="user-wallet">₹ {Number(user.wallet?.balance || 0).toFixed(2)}</div>
+            )}
           </div>
         </div>
 
@@ -115,7 +125,7 @@ export default function AppShell() {
           </button>
 
           <div className="header-breadcrumbs">
-            <span className="text-muted text-sm">Pages</span>
+            <span className="text-muted text-sm font-semibold">Payverse</span>
             <span className="breadcrumb-separator">/</span>
             <span className="text-primary font-medium text-sm">
               {navLinks.find((l) => l.path === normalizedPath)?.name || 'Page'}

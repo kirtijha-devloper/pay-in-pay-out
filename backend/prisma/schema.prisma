@@ -31,7 +31,8 @@ model User {
   email            String   @unique
   passwordHash     String
   role             Role     @default(RETAILER)
-  isActive         Boolean  @default(true)
+  isActive       Boolean  @default(true)
+  qrCodePath     String?
   kycStatus        KycStatus @default(PENDING)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -116,6 +117,7 @@ model CompanyBankAccount {
   accountNumber  String   @unique
   ifscCode       String
   isActive       Boolean  @default(true)
+  qrCodePath     String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -186,7 +188,8 @@ model CommissionSlab {
   commissionValue Decimal  @default(0.00) @db.Decimal(15, 2)
   minAmount       Decimal  @default(0.00) @db.Decimal(15, 2)
   maxAmount       Decimal? @db.Decimal(15, 2)
-  isActive        Boolean  @default(true)
+  isActive       Boolean  @default(true)
+  qrCodePath     String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -204,7 +207,8 @@ model UserCommissionSetup {
   commissionValue Decimal  @default(0.00) @db.Decimal(15, 2)
   minAmount       Decimal  @default(0.00) @db.Decimal(15, 2)
   maxAmount       Decimal? @db.Decimal(15, 2)
-  isActive        Boolean  @default(true)
+  isActive       Boolean  @default(true)
+  qrCodePath     String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

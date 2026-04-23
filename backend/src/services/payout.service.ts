@@ -273,10 +273,10 @@ async function reservePayoutRequest(
 
     await tx.walletTransaction.create({
       data: {
-        amount: new Prisma.Decimal(quote.amount),
+        amount: new Prisma.Decimal(quote.netAmount),
         type: 'DEBIT',
         status: 'PENDING',
-        description: 'Payout reserved',
+        description: 'Payout | Request Submitted',
         senderId: userId,
         receiverId: userId,
         senderBalAfter: updatedWallet.balance,
@@ -284,6 +284,22 @@ async function reservePayoutRequest(
         serviceRequestId: request.id,
       },
     });
+
+    if (quote.charge > 0) {
+      await tx.walletTransaction.create({
+        data: {
+          amount: new Prisma.Decimal(quote.charge),
+          type: 'DEBIT',
+          status: 'PENDING',
+          description: 'Payout Charges | Charges Deducted',
+          senderId: userId,
+          receiverId: userId,
+          senderBalAfter: updatedWallet.balance,
+          receiverBalAfter: updatedWallet.balance,
+          serviceRequestId: request.id,
+        },
+      });
+    }
 
     return request;
   });
@@ -317,7 +333,7 @@ async function creditCommissionShares(
       data: {
         amount: share.amount,
         type: 'CREDIT',
-        description: 'Payout commission',
+        description: 'Commission Earned | Payout',
         senderId: requestUserId,
         receiverId: share.receiverId,
         receiverBalAfter: updatedWallet.balance,
@@ -348,8 +364,8 @@ export async function finalizePayoutSettlement(
     const grossAmount = toDecimalAmount(request.amount || 0);
     const chargeAmount = toDecimalAmount(request.chargeAmount || 0);
     const netAmount = toDecimalAmount(request.creditedAmount || grossAmount.minus(chargeAmount));
-    const debitTransaction = request.walletTransactions.find(
-      (transaction) => transaction.type === 'DEBIT' && transaction.status === 'PENDING'
+    const pendingDebits = request.walletTransactions.filter(
+      (transaction: any) => transaction.type === 'DEBIT' && transaction.status === 'PENDING'
     );
     const chargeDistribution = parseChargeDistribution(request.chargeDistribution);
 
@@ -368,9 +384,9 @@ export async function finalizePayoutSettlement(
       return { skipped: true, request };
     }
 
-    if (debitTransaction) {
+    if (pendingDebits.length > 0) {
       await tx.walletTransaction.updateMany({
-        where: { id: debitTransaction.id, status: 'PENDING' },
+        where: { id: { in: pendingDebits.map((d: any) => d.id) }, status: 'PENDING' },
         data: { status: outcome },
       });
     }
@@ -395,16 +411,31 @@ export async function finalizePayoutSettlement(
 
     await tx.walletTransaction.create({
       data: {
-        amount: grossAmount,
+        amount: netAmount,
         type: 'CREDIT',
         status: 'SUCCESS',
         description: 'Payout refund',
         senderId: null,
         receiverId: request.userId,
-        receiverBalAfter: refundedWallet.balance,
+        receiverBalAfter: refundedWallet.balance.minus(chargeAmount),
         serviceRequestId: request.id,
       },
     });
+
+    if (chargeAmount.toNumber() > 0) {
+      await tx.walletTransaction.create({
+        data: {
+          amount: chargeAmount,
+          type: 'CREDIT',
+          status: 'SUCCESS',
+          description: 'Payout commission refund',
+          senderId: null,
+          receiverId: request.userId,
+          receiverBalAfter: refundedWallet.balance,
+          serviceRequestId: request.id,
+        },
+      });
+    }
 
     return {
       skipped: false,

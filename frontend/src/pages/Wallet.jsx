@@ -232,6 +232,8 @@ function BankAccountModal({ isOpen, onClose, onSaved, initialData }) {
     if (!isOpen) return;
     setError('');
     setLoading(false);
+    
+    
     setFormData({
       bankName: initialData?.bankName || '',
       accountNumber: initialData?.accountNumber || '',
@@ -247,17 +249,27 @@ function BankAccountModal({ isOpen, onClose, onSaved, initialData }) {
     event.preventDefault();
     setLoading(true);
     setError('');
+    
 
     try {
-      const payload = {
-        ...formData,
-        id: initialData?.id,
-      };
+      const data = new FormData();
+      
+      const payloadBankName = formData.bankName;
+      let payloadAccountNumber = formData.accountNumber;
+      let payloadIfscCode = formData.ifscCode;
+      
+      data.append('bankName', payloadBankName);
+      data.append('accountNumber', payloadAccountNumber);
+      data.append('confirmAccountNumber', payloadAccountNumber);
+      data.append('ifscCode', payloadIfscCode);
+      data.append('isActive', formData.isActive);
+
+      if (initialData?.id) data.append('id', initialData.id);
 
       if (initialData?.id) {
-        await api.put('/services/bank-accounts', payload);
+        await api.put('/services/bank-accounts', data, { headers: { 'Content-Type': 'multipart/form-data' }});
       } else {
-        await api.post('/services/bank-accounts', payload);
+        await api.post('/services/bank-accounts', data, { headers: { 'Content-Type': 'multipart/form-data' }});
       }
 
       onSaved();
@@ -272,58 +284,71 @@ function BankAccountModal({ isOpen, onClose, onSaved, initialData }) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl w-full max-w-xl p-6">
-        <h2 className="text-xl font-bold mb-1">{initialData ? 'Edit Bank Account' : 'Add Company Bank Account'}</h2>
-        <p className="text-sm text-gray-500 mb-5">These accounts will be available to users when they request wallet top-ups.</p>
+        <h2 className="text-xl font-bold mb-1">{initialData ? 'Edit Details' : 'Add Deposit Method'}</h2>
+        <p className="text-sm text-gray-500 mb-5">These will be available to users when they request wallet top-ups.</p>
+
 
         {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 mb-4">{error}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1 md:col-span-2">
-              <label className="text-xs font-bold uppercase text-gray-500">Bank Name</label>
+          <div className="space-y-5">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Bank Name</label>
               <input
                 type="text"
                 required
+                placeholder="e.g. HDFC Bank"
                 value={formData.bankName}
                 onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
+                className="w-full py-3 px-4 bg-gray-50/50 focus:bg-white border-2 border-transparent focus:border-primary rounded-xl font-bold text-sm outline-none transition-all"
               />
             </div>
-            <div className="space-y-1 md:col-span-2">
-              <label className="text-xs font-bold uppercase text-gray-500">Account Number</label>
-              <input
-                type="text"
-                required
-                value={formData.accountNumber}
-                onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
-              />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Account Number</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.accountNumber}
+                  onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+                  className="w-full py-3 px-4 bg-gray-50/50 border-2 border-transparent focus:border-primary rounded-xl font-bold text-sm tracking-tight outline-none transition-all"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Confirm Number</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.confirmAccountNumber}
+                  onChange={(e) => setFormData({ ...formData, confirmAccountNumber: e.target.value })}
+                  className="w-full py-3 px-4 bg-gray-50/50 border-2 border-transparent focus:border-primary rounded-xl font-bold text-sm tracking-tight outline-none transition-all"
+                />
+              </div>
             </div>
-            <div className="space-y-1 md:col-span-2">
-              <label className="text-xs font-bold uppercase text-gray-500">Confirm Account Number</label>
-              <input
-                type="text"
-                required
-                value={formData.confirmAccountNumber}
-                onChange={(e) => setFormData({ ...formData, confirmAccountNumber: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <label className="text-xs font-bold uppercase text-gray-500">IFSC Code</label>
-              <input
-                type="text"
-                required
-                value={formData.ifscCode}
-                onChange={(e) => setFormData({ ...formData, ifscCode: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <label className="text-xs font-bold uppercase text-gray-500">Status</label>
-              <select
-                value={String(formData.isActive)}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'true' })}
-              >
-                <option value="true">Active</option>
-                <option value="false">Inactive</option>
-              </select>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">IFSC Code</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.ifscCode}
+                  onChange={(e) => setFormData({ ...formData, ifscCode: e.target.value })}
+                  className="w-full py-3 px-4 bg-gray-50/50 border-2 border-transparent focus:border-primary rounded-xl font-bold text-sm outline-none transition-all"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Account Status</label>
+                <select
+                  value={String(formData.isActive)}
+                  onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'true' })}
+                  className="w-full py-3 px-4 bg-gray-50/50 border-2 border-transparent focus:border-primary rounded-xl font-bold text-sm outline-none transition-all"
+                >
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -400,7 +425,7 @@ export default function Wallet() {
   }, [requestFilter]);
 
   const approveRequest = async (id) => {
-    if (!window.confirm('Approve this wallet top-up request?')) return;
+
 
     try {
       await api.patch(`/services/fund-request/${id}/approve`);
@@ -412,7 +437,7 @@ export default function Wallet() {
   };
 
   const rejectRequest = async (id) => {
-    if (!window.confirm('Reject this wallet top-up request?')) return;
+
 
     try {
       await api.patch(`/services/fund-request/${id}/reject`);
@@ -450,16 +475,10 @@ export default function Wallet() {
           </Link>
         )}
 
-        {canCreateRequest && (
-          <button onClick={() => setIsRequestModalOpen(true)} className="btn btn-primary shadow-lg shadow-blue-200" type="button">
-            <Plus size={18} /> New Request
-          </button>
-        )}
-
-        {isAdmin && (
-          <button onClick={() => setIsBankModalOpen(true)} className="btn btn-primary shadow-lg shadow-blue-200" type="button">
-            <Building2 size={18} /> Add Company Bank Account
-          </button>
+        {!isAdmin && !kycVerified && (
+          <Link to="/kyc-verification" className="btn btn-outline shadow-lg shadow-amber-100">
+            Complete KYC
+          </Link>
         )}
       </div>
 
@@ -646,14 +665,14 @@ export default function Wallet() {
                 ) : (
                   requests.map((req) => (
                     <tr key={req.id}>
-                      <td>
+                      <td className="whitespace-nowrap">
                         <div className="flex flex-col">
                           <span className="font-semibold">{formatParty(req.user)}</span>
                           <span className="text-[10px] text-gray-400">{new Date(req.createdAt).toLocaleString()}</span>
                         </div>
                       </td>
-                      <td className="font-bold">{formatAmount(req.amount)}</td>
-                      <td>
+                      <td className="font-bold whitespace-nowrap">{formatAmount(req.amount)}</td>
+                      <td className="whitespace-nowrap">
                         <div className="flex flex-col">
                           <span className="text-emerald-600 font-semibold">
                             Charge: {formatAmount(req.chargeAmount || 0)}
@@ -663,13 +682,13 @@ export default function Wallet() {
                           </span>
                         </div>
                       </td>
-                      <td>
+                      <td className="whitespace-nowrap">
                         <div className="flex flex-col">
                           <span className="font-medium text-xs">{req.companyBankAccount?.bankName || req.bankName || '-'}</span>
                           <span className="text-[10px] text-gray-400">{req.companyBankAccount?.accountNumber || req.accountNumber || '-'}</span>
                         </div>
                       </td>
-                      <td>
+                      <td className="whitespace-nowrap">
                         {req.receiptPath ? (
                           <a
                             href={resolveUploadUrl(req.receiptPath)}
@@ -683,11 +702,11 @@ export default function Wallet() {
                           <span className="text-xs text-gray-400">-</span>
                         )}
                       </td>
-                      <td>
+                      <td className="whitespace-nowrap">
                         <StatusBadge status={req.status} />
                       </td>
                       {isAdmin && (
-                        <td>
+                        <td className="whitespace-nowrap">
                           {req.status === 'PENDING' ? (
                             <div className="flex gap-2">
                               <button
@@ -738,6 +757,7 @@ export default function Wallet() {
               <thead>
                 <tr>
                   <th>Date</th>
+                  <th>Services</th>
                   <th>Description</th>
                   <th>Type</th>
                   <th>Amount</th>
@@ -763,6 +783,15 @@ export default function Wallet() {
                     return (
                       <tr key={txn.id}>
                         <td className="text-xs text-gray-500">{new Date(txn.createdAt).toLocaleString()}</td>
+                        <td>
+                          <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
+                            txn.type === 'CREDIT' 
+                              ? 'bg-emerald-100 text-emerald-700' 
+                              : 'bg-amber-100 text-amber-700'
+                          }`}>
+                            {txn.type === 'CREDIT' ? 'Pay In' : 'Pay Out'}
+                          </span>
+                        </td>
                         <td>
                           <div className="flex flex-col">
                             <span className="font-medium text-sm">{txn.description || 'Wallet Transaction'}</span>

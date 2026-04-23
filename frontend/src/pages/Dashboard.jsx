@@ -11,36 +11,63 @@ export default function Dashboard() {
     totalUsers: 0,
     totalBalance: 0,
     totalTransactions: 0,
-    pendingRequests: 0,
+    totalCredit: 0,
+    totalDebit: 0,
+    netProfit: 0,
+    pendingFundRequests: 0,
+    pendingPayouts: 0,
     recentTransactions: []
   });
   const [loading, setLoading] = useState(true);
+  const [chartData, setChartData] = useState([]);
+  
+  // Date filter state
+  const [dateRange, setDateRange] = useState({
+    preset: '15D',
+    from: '',
+    to: ''
+  });
 
-  // Sample data for charts (in a real app, this would come from the API)
-  const chartData = [
-    { name: 'Mon', revenue: 4000, transactions: 24 },
-    { name: 'Tue', revenue: 3000, transactions: 18 },
-    { name: 'Wed', revenue: 2000, transactions: 12 },
-    { name: 'Thu', revenue: 2780, transactions: 20 },
-    { name: 'Fri', revenue: 1890, transactions: 15 },
-    { name: 'Sat', revenue: 2390, transactions: 22 },
-    { name: 'Sun', revenue: 3490, transactions: 26 },
-  ];
+  const fetchStats = async () => {
+    setLoading(true);
+    try {
+      let url = '/reports/dashboard';
+      const params = new URLSearchParams();
+      
+      if (dateRange.from) params.append('from', dateRange.from);
+      if (dateRange.to) params.append('to', dateRange.to);
+      else if (dateRange.preset) {
+        const d = new Date();
+        if (dateRange.preset === '1D') d.setHours(0, 0, 0, 0);
+        else if (dateRange.preset === '7D') d.setDate(d.getDate() - 7);
+        else if (dateRange.preset === '15D') d.setDate(d.getDate() - 15);
+        params.append('from', d.toISOString());
+      }
+
+      const queryString = params.toString();
+      const { data } = await api.get(`${url}${queryString ? `?${queryString}` : ''}`);
+      if (data.success) {
+        setStats(data.stats);
+        setChartData(data.stats.chartData || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch stats', err);
+    }
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const { data } = await api.get('/reports/dashboard');
-        if (data.success) {
-          setStats(data.stats);
-        }
-      } catch (err) {
-        console.error('Failed to fetch stats', err);
-      }
-      setLoading(false);
-    };
     fetchStats();
-  }, []);
+  }, [dateRange]);
+
+  const handlePresetChange = (preset) => {
+    setDateRange({ preset, from: '', to: '' });
+  };
+
+  const handleCustomDateChange = (e) => {
+    const { name, value } = e.target;
+    setDateRange(prev => ({ ...prev, [name]: value, preset: '' }));
+  };
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-[400px]">
@@ -62,69 +89,126 @@ export default function Dashboard() {
 
   return (
     <div className="flex-col gap-4 md:gap-6 space-y-6 md:space-y-8">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 lh-1.2">Welcome back, {user.profile?.ownerName || 'User'}!</h1>
           <p className="text-gray-500 mt-1 text-sm md:text-base">Here is what's happening with your business today.</p>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-white rounded-xl border border-gray-200 text-xs md:text-sm font-medium shadow-sm w-fit">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-          <span className="hide-mobile">System Live: </span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        
+        {/* Date Filters */}
+        <div className="flex flex-wrap items-center gap-3 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+          <div className="flex bg-gray-50 p-1 rounded-xl">
+            {['1D', '7D', '15D'].map(p => (
+              <button
+                key={p}
+                onClick={() => handlePresetChange(p)}
+                className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${dateRange.preset === p ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+              >
+                {p === '1D' ? 'Today' : p === '7D' ? '1 Week' : '15 Days'}
+              </button>
+            ))}
+          </div>
+          <div className="h-4 w-px bg-gray-200 hide-mobile"></div>
+          <div className="flex items-center gap-2">
+            <input 
+              type="date" 
+              name="from"
+              value={dateRange.from.split('T')[0]} 
+              onChange={handleCustomDateChange}
+              className="text-xs border-none bg-gray-50 rounded-lg p-1.5 focus:ring-1 focus:ring-primary/20 w-32" 
+            />
+            <span className="text-gray-300 text-xs">-</span>
+            <input 
+              type="date" 
+              name="to"
+              value={dateRange.to.split('T')[0]} 
+              onChange={handleCustomDateChange}
+              className="text-xs border-none bg-gray-50 rounded-lg p-1.5 focus:ring-1 focus:ring-primary/20 w-32" 
+            />
+          </div>
         </div>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <div className="card group hover:scale-[1.01] md:hover:scale-[1.02] transition-all duration-300 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-primary/5 rounded-full -mr-12 -mt-12 transition-all group-hover:bg-primary/10"></div>
+        {/* Wallet Balance */}
+        <div className="card group hover:shadow-md transition-all duration-300 relative overflow-hidden bg-white border border-gray-100">
           <div className="p-4 md:p-6 relative">
-            <div className="flex justify-between items-start mb-2 md:mb-4">
-              <div className="p-2 md:p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
                 <Wallet size={20} />
               </div>
-              <TrendingUp size={18} className="text-emerald-500" />
+              <div className="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">Overall</div>
             </div>
             <h3 className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">Wallet Balance</h3>
             <div className="text-xl md:text-2xl font-black text-gray-900 mt-1">₹ {Number(stats.totalBalance).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
           </div>
         </div>
 
-        <div className="card group hover:scale-[1.01] md:hover:scale-[1.02] transition-all duration-300 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-emerald-50/50 rounded-full -mr-12 -mt-12 transition-all group-hover:bg-emerald-100/50"></div>
+        {/* Net Profit */}
+        <div className="card group hover:shadow-md transition-all duration-300 relative overflow-hidden bg-white border border-gray-100">
           <div className="p-4 md:p-6 relative">
-            <div className="flex justify-between items-start mb-2 md:mb-4">
-              <div className="p-2 md:p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
-                <Users size={20} />
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
+                <TrendingUp size={20} />
               </div>
+              <div className="text-[10px] font-bold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full">Period</div>
             </div>
-            <h3 className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">Total Downline</h3>
-            <div className="text-xl md:text-2xl font-black text-gray-900 mt-1">{stats.totalUsers} <span className="text-[10px] md:text-xs font-normal text-gray-400 ml-1 uppercase">accounts</span></div>
+            <h3 className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">Net Profit</h3>
+            <div className="text-xl md:text-2xl font-black text-emerald-600 mt-1">₹ {Number(stats.netProfit).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
           </div>
         </div>
 
-        <div className="card group hover:scale-[1.01] md:hover:scale-[1.02] transition-all duration-300 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-purple-50/50 rounded-full -mr-12 -mt-12 transition-all group-hover:bg-purple-100/50"></div>
+        {/* Charges Deducted */}
+        <div className="card group hover:shadow-md transition-all duration-300 relative overflow-hidden bg-white border border-gray-100">
           <div className="p-4 md:p-6 relative">
-            <div className="flex justify-between items-start mb-2 md:mb-4">
-              <div className="p-2 md:p-2.5 bg-purple-50 text-purple-600 rounded-xl">
-                <Activity size={20} />
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-2.5 bg-rose-50 text-rose-600 rounded-xl">
+                <TrendingDown size={20} />
               </div>
             </div>
-            <h3 className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">Service Requests</h3>
-            <div className="text-xl md:text-2xl font-black text-gray-900 mt-1">{stats.totalTransactions}</div>
+            <h3 className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">Charges Deducted</h3>
+            <div className="text-xl md:text-2xl font-black text-rose-600 mt-1">₹ {Number(stats.totalCharges || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
           </div>
         </div>
 
-        <div className="card group hover:scale-[1.01] md:hover:scale-[1.02] transition-all duration-300 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-amber-50/50 rounded-full -mr-12 -mt-12 transition-all group-hover:bg-amber-100/50"></div>
+        {/* Total Credit */}
+        <div className="card group hover:shadow-md transition-all duration-300 relative overflow-hidden bg-white border border-gray-100">
           <div className="p-4 md:p-6 relative">
-            <div className="flex justify-between items-start mb-2 md:mb-4">
-              <div className="p-2 md:p-2.5 bg-amber-50 text-amber-600 rounded-xl">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-2.5 bg-gray-50 text-gray-600 rounded-xl">
+                <DollarSign size={20} />
+              </div>
+            </div>
+            <h3 className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">Total Credit</h3>
+            <div className="text-xl md:text-2xl font-black text-gray-900 mt-1">₹ {Number(stats.totalCredit).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+          </div>
+        </div>
+
+        {/* Total Debit */}
+        <div className="card group hover:shadow-md transition-all duration-300 relative overflow-hidden bg-white border border-gray-100">
+          <div className="p-4 md:p-6 relative">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-2.5 bg-red-50 text-red-600 rounded-xl">
+                <TrendingDown size={20} />
+              </div>
+            </div>
+            <h3 className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">Total Debit</h3>
+            <div className="text-xl md:text-2xl font-black text-gray-900 mt-1">₹ {Number(stats.totalDebit).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+          </div>
+        </div>
+
+        {/* Pending Fund Request */}
+        <div className="card group hover:shadow-md transition-all duration-300 relative overflow-hidden bg-white border border-gray-100">
+          <div className="p-4 md:p-6 relative">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-2.5 bg-amber-50 text-amber-600 rounded-xl">
                 <Clock size={20} />
               </div>
+              <div className="text-xs font-bold text-amber-600">Pending</div>
             </div>
-            <h3 className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">Pending Action</h3>
-            <div className="text-xl md:text-2xl font-black text-gray-900 mt-1">{stats.pendingRequests}</div>
+            <h3 className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">Fund Requests</h3>
+            <div className="text-xl md:text-2xl font-black text-gray-900 mt-1">{stats.pendingFundRequests}</div>
           </div>
         </div>
       </div>
@@ -136,11 +220,18 @@ export default function Dashboard() {
           <div className="p-4 md:p-6 border-b flex justify-between items-center">
             <div>
               <h2 className="text-base md:text-lg font-bold">Transaction Trends</h2>
-              <p className="text-[10px] md:text-xs text-gray-500">Weekly analysis</p>
+              <p className="text-[10px] md:text-xs text-gray-500">
+                {dateRange.preset === '1D' ? 'Today\'s activity' : 
+                 dateRange.preset === '7D' ? 'Last 7 days' : 
+                 dateRange.preset === '15D' ? 'Last 15 days' : 'Custom range summary'}
+              </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-4">
               <span className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase">
-                <div className="w-2 h-2 rounded-full bg-primary"></div> Revenue
+                <div className="w-2 h-2 rounded-full bg-primary"></div> Volume
+              </span>
+              <span className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase">
+                <div className="w-2 h-2 rounded-full bg-purple-400"></div> Count
               </span>
             </div>
           </div>
@@ -158,8 +249,10 @@ export default function Dashboard() {
                 <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94A3B8'}} />
                 <Tooltip 
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  formatter={(value, name) => [name === 'revenue' ? `₹${value}` : value, name === 'revenue' ? 'Volume' : 'Transactions']}
                 />
                 <Area type="monotone" dataKey="revenue" stroke="#4F46E5" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+                <Area type="monotone" dataKey="transactions" stroke="#A855F7" strokeWidth={2} fill="transparent" />
               </AreaChart>
             </ResponsiveContainer>
           </div>

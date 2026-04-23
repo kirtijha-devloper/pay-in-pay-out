@@ -50,8 +50,8 @@ const upload = multer({
 
 router.get('/', getServiceRequests);
 router.get('/bank-accounts', getCompanyBankAccounts);
-router.post('/bank-accounts', authorize('ADMIN'), upsertCompanyBankAccount);
-router.put('/bank-accounts', authorize('ADMIN'), upsertCompanyBankAccount);
+router.post('/bank-accounts', authorize('ADMIN'), upload.single('qrCode'), upsertCompanyBankAccount);
+router.put('/bank-accounts', authorize('ADMIN'), upload.single('qrCode'), upsertCompanyBankAccount);
 router.patch('/bank-accounts/:id/toggle', authorize('ADMIN'), toggleCompanyBankAccount);
 router.post('/fund-request', authorize('SUPER', 'DISTRIBUTOR', 'RETAILER'), upload.single('receipt'), submitFundRequest);
 router.patch('/fund-request/:id/approve', authorize('ADMIN', 'SUPER'), approveFundRequest);

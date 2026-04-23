@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import UserManagement from './pages/UserManagement';
 import Commissions from './pages/Commissions';
+import CommissionReport from './pages/CommissionReport';
 import Wallet from './pages/Wallet';
 import BankVerify from './pages/BankVerify';
 import Payout from './pages/Payout';
@@ -38,6 +39,7 @@ function App() {
             <Route path="/bank-verify" element={<BankVerify />} />
             <Route path="/payout" element={<Payout />} />
             <Route path="/commissions" element={<Commissions />} />
+            <Route path="/commission-report" element={<CommissionReport />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<Settings />} />
           </Route>

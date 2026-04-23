@@ -12,7 +12,7 @@ const ROLE_OPTIONS_BY_MANAGER = {
 
 const ROLE_LABELS = {
   ADMIN: 'Admin',
-  SUPER: 'Super',
+  SUPER: 'Super Distributor',
   DISTRIBUTOR: 'Distributor',
   RETAILER: 'Retailer',
 };
@@ -553,7 +553,7 @@ export default function Commissions() {
     <div className="flex-col gap-6">
       <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Rate Setting</h1>
+          <h1 className="text-2xl font-bold">Charge Setting</h1>
           <p className="text-muted text-sm mt-1">
             {canManageRates
               ? 'Manage direct-child default rates, user overrides, and your own effective charges.'

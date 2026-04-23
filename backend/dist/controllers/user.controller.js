@@ -311,11 +311,48 @@ const deleteUser = async (req, res) => {
 };
 exports.deleteUser = deleteUser;
 const updateProfile = async (req, res) => {
-    const { ownerName, shopName, fullAddress, state, pinCode } = req.body;
+    const { ownerName, shopName, fullAddress, state, pinCode, bankName, accountNumber, accountName, ifscCode, tpin, } = req.body;
     try {
+        const userId = req.user.id;
+        const isUpdatingBank = bankName || accountNumber || accountName || ifscCode;
+        if (isUpdatingBank) {
+            if (!tpin) {
+                res.status(400).json({
+                    success: false,
+                    message: 'Transaction PIN is required to update bank details',
+                });
+                return;
+            }
+            const userExists = await prisma_1.default.user.findUnique({
+                where: { id: userId },
+                select: { transactionPinHash: true },
+            });
+            if (!userExists?.transactionPinHash) {
+                res.status(400).json({
+                    success: false,
+                    message: 'Please set your Transaction PIN in security settings first',
+                });
+                return;
+            }
+            const validPin = await bcryptjs_1.default.compare(String(tpin), userExists.transactionPinHash);
+            if (!validPin) {
+                res.status(400).json({ success: false, message: 'Invalid Transaction PIN' });
+                return;
+            }
+        }
         const profile = await prisma_1.default.profile.update({
-            where: { userId: req.user.id },
-            data: { ownerName, shopName, fullAddress, state, pinCode },
+            where: { userId },
+            data: {
+                ownerName,
+                shopName,
+                fullAddress,
+                state,
+                pinCode,
+                bankName,
+                accountNumber,
+                accountName,
+                ifscCode,
+            },
         });
         res.json({ success: true, profile });
     }

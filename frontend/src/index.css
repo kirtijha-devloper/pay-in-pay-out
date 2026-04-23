@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Color Palette - Premium FinTech (AbheePay) */
+  /* Color Palette - Premium FinTech (payverse) */
   --color-primary: #1D4ED8; /* Royal Blue */
   --color-primary-light: #EFF6FF;
   --color-primary-hover: #1E40AF;
@@ -258,9 +258,9 @@ input:focus, select:focus, textarea:focus {
 .badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
+  padding: 4px 12px;
   border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-weight: 600;
   letter-spacing: 0.025em;
   text-transform: uppercase;
@@ -501,6 +501,7 @@ th.sticky-col {
 .hover\:text-gray-600:hover { color: #475569; }
 .hover\:underline:hover { text-decoration: underline; }
 .disabled\:opacity-50:disabled { opacity: 0.5; }
+.whitespace-nowrap { white-space: nowrap; }
 
 .class-panel { background: rgba(255, 255, 255, 0.95); border-radius: var(--radius-xl); border: 1px solid rgba(226, 232, 240, 0.7); box-shadow: var(--shadow-sm); }
 

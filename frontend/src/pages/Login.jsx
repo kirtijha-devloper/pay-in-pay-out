@@ -40,7 +40,7 @@ export default function Login() {
           <div className="login-logo">
             <Shield size={32} color="var(--color-primary)" />
           </div>
-          <h2>Welcome to AbheePay</h2>
+          <h2>Welcome to Payverse</h2>
           <p className="text-muted text-sm">Enter your details to access your dashboard</p>
         </div>
 
@@ -58,7 +58,7 @@ export default function Login() {
               <input
                 type="email"
                 required
-                placeholder="admin@abheepay.com"
+                placeholder="admin@payverse.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />

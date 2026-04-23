@@ -29,7 +29,7 @@ export default function Reports() {
     reportTabs.push({ id: 'distributor', label: 'Distributor Report', icon: Users });
   }
   if (user.role === 'ADMIN') {
-    reportTabs.push({ id: 'super', label: 'Super Report', icon: Users });
+    reportTabs.push({ id: 'super', label: 'Super Distributor Report', icon: Users });
   }
 
   const fetchData = async () => {
@@ -121,6 +121,45 @@ export default function Reports() {
     );
   };
 
+  const downloadCSV = () => {
+    if (!data || data.length === 0) return alert('No data to export');
+    
+    let csvContent = "";
+    
+    if (activeTab === 'ledger') {
+      csvContent += "Date,Description,Type,Amount,After Balance\n";
+      data.forEach(txn => {
+        const date = new Date(txn.createdAt).toLocaleString().replace(/,/g, ' ');
+        const desc = (txn.description || '').replace(/,/g, ' ');
+        const type = txn.type;
+        const amount = Number(txn.amount).toFixed(2);
+        const bal = Number(txn.type === 'CREDIT' ? txn.receiverBalAfter : txn.senderBalAfter).toFixed(2);
+        csvContent += `${date},${desc},${type},${amount},${bal}\n`;
+      });
+    } else {
+      csvContent += "Date,ID,User,Role,Service,Amount,Status\n";
+      data.forEach(req => {
+        const date = new Date(req.createdAt).toLocaleDateString().replace(/,/g, ' ');
+        const id = req.id;
+        const user = (req.user?.profile?.ownerName || '').replace(/,/g, ' ');
+        const role = req.user?.role || '';
+        const service = req.serviceType || '';
+        const amount = Number(req.amount).toFixed(2);
+        const status = req.status;
+        csvContent += `${date},${id},${user},${role},${service},${amount},${status}\n`;
+      });
+    }
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `report_${activeTab}_${new Date().getTime()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="flex-col gap-6">
       <div className="flex justify-between items-center mb-6">
@@ -128,9 +167,14 @@ export default function Reports() {
           <h1 className="text-2xl font-bold">System Reports</h1>
           <p className="text-muted text-sm mt-1">Official logs and financial statements (Section 10 Compliant).</p>
         </div>
-        <button className="btn btn-outline" onClick={() => window.print()}>
-          <Download size={18} /> Export PDF
-        </button>
+        <div className="flex gap-2">
+          <button className="btn btn-outline" onClick={downloadCSV}>
+            Export CSV
+          </button>
+          <button className="btn btn-outline" onClick={() => window.print()}>
+            <Download size={18} /> Export PDF
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -168,7 +212,7 @@ export default function Reports() {
               />
             </div>
             <button onClick={fetchData} className="btn btn-primary py-1 px-4 text-xs ml-auto">
-              Refresh
+              See Report
             </button>
           </div>
 

@@ -277,11 +277,10 @@ export default function KycVerification() {
   };
 
   const approveRequest = async (id) => {
-    if (!window.confirm('Approve this KYC request?')) return;
     try {
       const { data } = await api.patch(`/users/kyc/requests/${id}/approve`);
       if (data.success) {
-        await loadRequests('pending', 'PENDING');
+        window.location.reload();
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Unable to approve KYC request');
@@ -295,7 +294,7 @@ export default function KycVerification() {
     try {
       const { data } = await api.patch(`/users/kyc/requests/${id}/reject`, { reviewRemark });
       if (data.success) {
-        await loadRequests('pending', 'PENDING');
+        window.location.reload();
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Unable to reject KYC request');

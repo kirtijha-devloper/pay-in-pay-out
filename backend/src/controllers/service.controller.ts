@@ -53,7 +53,7 @@ async function distributeFundRequestCharge(
       tx,
       share.receiverId,
       share.amount,
-      'Fund request commission',
+      'Commission Earned | Fund Request',
       requestUserId,
       serviceRequestId
     );
@@ -112,6 +112,7 @@ export const upsertCompanyBankAccount = async (req: AuthRequest, res: Response) 
     const normalizedAccountNumber = String(accountNumber).trim();
     const normalizedIfscCode = String(ifscCode).trim().toUpperCase();
     const normalizedIsActive = typeof isActive === 'boolean' ? isActive : String(isActive) !== 'false';
+    const qrCodePath = req.file ? req.file.path.replace(/\\/g, '/') : undefined;
 
     const payload = {
       bankName: normalizedBankName,
@@ -119,6 +120,7 @@ export const upsertCompanyBankAccount = async (req: AuthRequest, res: Response) 
       ifscCode: normalizedIfscCode,
       isActive: normalizedIsActive,
       updatedById: req.user!.id,
+      ...(qrCodePath && { qrCodePath }),
     };
 
     const account = id
@@ -244,27 +246,54 @@ export const approveFundRequest = async (req: AuthRequest, res: Response) => {
     }
 
     const shares = await buildChargeDistribution(request.userId, 'FUND_REQUEST', grossAmount);
+    const approver = await prisma.user.findUnique({ where: { id: req.user!.id } });
+    const approverLabel = approver?.email || 'Admin';
 
     await prisma.$transaction(async (tx) => {
-      await tx.serviceRequest.update({
-        where: { id },
+      const updated = await tx.serviceRequest.updateMany({
+        where: { id, status: 'PENDING' },
         data: {
           status: 'SUCCESS',
           approvedById: req.user!.id,
           approvedAt: new Date(),
           chargeAmount: charge,
           creditedAmount,
+          chargeDistribution: JSON.stringify(shares),
         },
       });
+
+      if (updated.count === 0) {
+        throw new Error('This request has already been processed or is no longer pending.');
+      }
 
       await creditWallet(
         tx,
         request.userId,
-        creditedAmount.toNumber(),
-        'Wallet top-up approved',
+        grossAmount.toNumber(),
+        `Wallet Top-up | Fund Request approved by ${approverLabel}`,
         request.userId,
         id
       );
+
+      if (charge.toNumber() > 0) {
+        const updatedWallet = await tx.wallet.update({
+          where: { userId: request.userId },
+          data: { balance: { decrement: charge.toNumber() } },
+        });
+
+        await tx.walletTransaction.create({
+          data: {
+            amount: charge.toNumber(),
+            type: 'DEBIT',
+            description: `Fund Request Charges | Approved by ${approverLabel} | Charges Deducted`,
+            senderId: request.userId,
+            receiverId: request.userId,
+            senderBalAfter: updatedWallet.balance,
+            receiverBalAfter: updatedWallet.balance,
+            serviceRequestId: id,
+          },
+        });
+      }
 
       await distributeFundRequestCharge(tx, request.userId, shares, id);
     });
@@ -284,14 +313,19 @@ export const approveFundRequest = async (req: AuthRequest, res: Response) => {
 export const rejectFundRequest = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
-    await prisma.serviceRequest.update({
-      where: { id },
+    const updated = await prisma.serviceRequest.updateMany({
+      where: { id, status: 'PENDING' },
       data: {
         status: 'FAILED',
         rejectedById: req.user!.id,
         rejectedAt: new Date(),
       },
     });
+
+    if (updated.count === 0) {
+      res.status(400).json({ success: false, message: 'Request already processed or not pending' });
+      return;
+    }
     res.json({ success: true, message: 'Fund request rejected' });
   } catch {
     res.status(500).json({ success: false, message: 'Server error' });
@@ -366,9 +400,11 @@ export const verifyBank = async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    await prisma.$transaction([
-      prisma.wallet.update({ where: { userId }, data: { balance: { decrement: charge } } }),
-      prisma.serviceRequest.create({
+    const shares = await buildChargeDistribution(userId, 'BANK_VERIFICATION', charge);
+
+    await prisma.$transaction(async (tx) => {
+      const updatedWallet = await tx.wallet.update({ where: { userId }, data: { balance: { decrement: charge } } });
+      const request = await tx.serviceRequest.create({
         data: {
           userId,
           serviceType: 'BANK_VERIFICATION',
@@ -378,11 +414,26 @@ export const verifyBank = async (req: AuthRequest, res: Response) => {
           accountNumber,
           ifscCode,
           status: 'SUCCESS',
+          chargeAmount: charge,
+          chargeDistribution: JSON.stringify(shares),
         },
-      }),
-    ]);
+      });
 
-    const shares = await buildChargeDistribution(userId, 'BANK_VERIFICATION', charge);
+      await tx.walletTransaction.create({
+        data: {
+          amount: charge,
+          type: 'DEBIT',
+          status: 'SUCCESS',
+          description: 'Bank Verification | Charges Deducted',
+          senderId: userId,
+          receiverId: userId,
+          senderBalAfter: updatedWallet.balance,
+          receiverBalAfter: updatedWallet.balance,
+          serviceRequestId: request.id,
+        },
+      });
+    });
+
     for (const share of shares) {
       const updatedWallet = await prisma.wallet.upsert({
         where: { userId: share.receiverId },
@@ -394,7 +445,7 @@ export const verifyBank = async (req: AuthRequest, res: Response) => {
         data: {
           amount: share.amount,
           type: 'CREDIT',
-          description: 'Bank verification commission',
+          description: 'Commission Earned | Bank Verification',
           senderId: userId,
           receiverId: share.receiverId,
           receiverBalAfter: updatedWallet.balance,
