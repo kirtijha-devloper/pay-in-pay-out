@@ -7,6 +7,7 @@ const router = (0, express_1.Router)();
 router.use(auth_1.authenticate);
 router.get('/dashboard', report_controller_1.getDashboardStats);
 router.get('/ledger', report_controller_1.getLedger);
+router.get('/commissions', report_controller_1.getCommissionReport);
 router.get('/general', report_controller_1.getReport);
 router.get('/', report_controller_1.getReport);
 exports.default = router;

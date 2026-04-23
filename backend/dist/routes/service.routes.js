@@ -35,8 +35,8 @@ const upload = (0, multer_1.default)({
 });
 router.get('/', service_controller_1.getServiceRequests);
 router.get('/bank-accounts', service_controller_1.getCompanyBankAccounts);
-router.post('/bank-accounts', (0, auth_1.authorize)('ADMIN'), service_controller_1.upsertCompanyBankAccount);
-router.put('/bank-accounts', (0, auth_1.authorize)('ADMIN'), service_controller_1.upsertCompanyBankAccount);
+router.post('/bank-accounts', (0, auth_1.authorize)('ADMIN'), upload.single('qrCode'), service_controller_1.upsertCompanyBankAccount);
+router.put('/bank-accounts', (0, auth_1.authorize)('ADMIN'), upload.single('qrCode'), service_controller_1.upsertCompanyBankAccount);
 router.patch('/bank-accounts/:id/toggle', (0, auth_1.authorize)('ADMIN'), service_controller_1.toggleCompanyBankAccount);
 router.post('/fund-request', (0, auth_1.authorize)('SUPER', 'DISTRIBUTOR', 'RETAILER'), upload.single('receipt'), service_controller_1.submitFundRequest);
 router.patch('/fund-request/:id/approve', (0, auth_1.authorize)('ADMIN', 'SUPER'), service_controller_1.approveFundRequest);

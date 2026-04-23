@@ -198,10 +198,10 @@ async function reservePayoutRequest(userId, beneficiary, quote, input, chargeDis
         });
         await tx.walletTransaction.create({
             data: {
-                amount: new client_1.Prisma.Decimal(quote.amount),
+                amount: new client_1.Prisma.Decimal(quote.netAmount),
                 type: 'DEBIT',
                 status: 'PENDING',
-                description: 'Payout reserved',
+                description: 'Payout | Request Submitted',
                 senderId: userId,
                 receiverId: userId,
                 senderBalAfter: updatedWallet.balance,
@@ -209,6 +209,21 @@ async function reservePayoutRequest(userId, beneficiary, quote, input, chargeDis
                 serviceRequestId: request.id,
             },
         });
+        if (quote.charge > 0) {
+            await tx.walletTransaction.create({
+                data: {
+                    amount: new client_1.Prisma.Decimal(quote.charge),
+                    type: 'DEBIT',
+                    status: 'PENDING',
+                    description: 'Payout Charges | Charges Deducted',
+                    senderId: userId,
+                    receiverId: userId,
+                    senderBalAfter: updatedWallet.balance,
+                    receiverBalAfter: updatedWallet.balance,
+                    serviceRequestId: request.id,
+                },
+            });
+        }
         return request;
     });
 }
@@ -230,7 +245,7 @@ async function creditCommissionShares(tx, requestUserId, grossAmount, serviceReq
             data: {
                 amount: share.amount,
                 type: 'CREDIT',
-                description: 'Payout commission',
+                description: 'Commission Earned | Payout',
                 senderId: requestUserId,
                 receiverId: share.receiverId,
                 receiverBalAfter: updatedWallet.balance,
@@ -253,7 +268,7 @@ async function finalizePayoutSettlement(requestId, outcome, providerResponse, se
         const grossAmount = (0, commission_service_1.toDecimalAmount)(request.amount || 0);
         const chargeAmount = (0, commission_service_1.toDecimalAmount)(request.chargeAmount || 0);
         const netAmount = (0, commission_service_1.toDecimalAmount)(request.creditedAmount || grossAmount.minus(chargeAmount));
-        const debitTransaction = request.walletTransactions.find((transaction) => transaction.type === 'DEBIT' && transaction.status === 'PENDING');
+        const pendingDebits = request.walletTransactions.filter((transaction) => transaction.type === 'DEBIT' && transaction.status === 'PENDING');
         const chargeDistribution = parseChargeDistribution(request.chargeDistribution);
         const updated = await tx.serviceRequest.updateMany({
             where: { id: requestId, status: 'PENDING' },
@@ -267,9 +282,9 @@ async function finalizePayoutSettlement(requestId, outcome, providerResponse, se
         if (updated.count === 0) {
             return { skipped: true, request };
         }
-        if (debitTransaction) {
+        if (pendingDebits.length > 0) {
             await tx.walletTransaction.updateMany({
-                where: { id: debitTransaction.id, status: 'PENDING' },
+                where: { id: { in: pendingDebits.map((d) => d.id) }, status: 'PENDING' },
                 data: { status: outcome },
             });
         }
@@ -291,16 +306,30 @@ async function finalizePayoutSettlement(requestId, outcome, providerResponse, se
         });
         await tx.walletTransaction.create({
             data: {
-                amount: grossAmount,
+                amount: netAmount,
                 type: 'CREDIT',
                 status: 'SUCCESS',
                 description: 'Payout refund',
                 senderId: null,
                 receiverId: request.userId,
-                receiverBalAfter: refundedWallet.balance,
+                receiverBalAfter: refundedWallet.balance.minus(chargeAmount),
                 serviceRequestId: request.id,
             },
         });
+        if (chargeAmount.toNumber() > 0) {
+            await tx.walletTransaction.create({
+                data: {
+                    amount: chargeAmount,
+                    type: 'CREDIT',
+                    status: 'SUCCESS',
+                    description: 'Payout commission refund',
+                    senderId: null,
+                    receiverId: request.userId,
+                    receiverBalAfter: refundedWallet.balance,
+                    serviceRequestId: request.id,
+                },
+            });
+        }
         return {
             skipped: false,
             requestId: request.id,

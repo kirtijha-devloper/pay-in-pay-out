@@ -29,14 +29,29 @@ app.use('/api/services', service_routes_1.default);
 app.use('/api/commissions', commission_routes_1.default);
 app.use('/api/reports', report_routes_1.default);
 app.use('/api/payment/v2/payout/callback', branchx_routes_1.default);
+// Serve Frontend static files from frontend/dist
+const frontendDistPath = path_1.default.join(__dirname, '../../frontend/dist');
+app.use(express_1.default.static(frontendDistPath));
+// API Health Check
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'OK', message: 'AbheePay API is running', timestamp: new Date() });
+    res.json({ status: 'OK', message: 'payverse API is running', timestamp: new Date() });
+});
+// Catch-all route to serve Index.html for React Router
+app.get('*', (req, res) => {
+    // If request is not for API, serve the index.html
+    if (!req.path.startsWith('/api')) {
+        res.sendFile(path_1.default.join(frontendDistPath, 'index.html'), (err) => {
+            if (err) {
+                res.status(404).send('Frontend build not found. Please run "npm run build" in the frontend directory.');
+            }
+        });
+    }
 });
 async function bootServer() {
     await (0, runtimeSchema_service_1.ensureRuntimeSchema)();
     (0, branchxPayoutSync_1.startBranchxPayoutSyncJob)();
     app.listen(PORT, () => {
-        console.log(`✅ AbheePay server running on http://localhost:${PORT}`);
+        console.log(`✅ payverse server running on http://localhost:${PORT}`);
     });
 }
 bootServer().catch((error) => {
