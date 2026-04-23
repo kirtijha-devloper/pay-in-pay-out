@@ -36,15 +36,18 @@ app.use(express_1.default.static(frontendDistPath));
 app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', message: 'payverse API is running', timestamp: new Date() });
 });
-// Catch-all route to serve Index.html for React Router
-app.get('*', (req, res) => {
-    // If request is not for API, serve the index.html
+// Catch-all middleware to serve Index.html for React Router
+app.use((req, res, next) => {
     if (!req.path.startsWith('/api')) {
         res.sendFile(path_1.default.join(frontendDistPath, 'index.html'), (err) => {
             if (err) {
-                res.status(404).send('Frontend build not found. Please run "npm run build" in the frontend directory.');
+                // If file doesn't exist, just continue (might be an API error or something else)
+                next();
             }
         });
+    }
+    else {
+        next();
     }
 });
 async function bootServer() {
