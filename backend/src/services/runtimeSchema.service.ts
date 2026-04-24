@@ -6,12 +6,12 @@ export async function ensureRuntimeSchema() {
   if (!runtimeSchemaReady) {
     runtimeSchemaReady = (async () => {
       await prisma.$executeRawUnsafe(`
-        ALTER TABLE "User"
+        ALTER TABLE "users"
         ADD COLUMN IF NOT EXISTS "transactionPinHash" TEXT
       `);
 
       await prisma.$executeRawUnsafe(`
-        ALTER TABLE "User"
+        ALTER TABLE "users"
         ADD COLUMN IF NOT EXISTS "transactionPinUpdatedAt" TIMESTAMP(3)
       `);
 
@@ -83,9 +83,9 @@ export async function ensureRuntimeSchema() {
           "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
           CONSTRAINT "KycRequest_pkey" PRIMARY KEY ("id"),
           CONSTRAINT "KycRequest_userId_fkey"
-            FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+            FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE,
           CONSTRAINT "KycRequest_reviewedById_fkey"
-            FOREIGN KEY ("reviewedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE
+            FOREIGN KEY ("reviewedById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE
         )
       `);
 

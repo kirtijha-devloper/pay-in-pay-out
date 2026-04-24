@@ -38,7 +38,7 @@ model User {
   transactionsSent           WalletTransaction[]   @relation("Sender")
   payoutBeneficiaries        PayoutBeneficiary[]
 
-  @@map("User")
+  @@map("users")
 }
 
 model Profile {
