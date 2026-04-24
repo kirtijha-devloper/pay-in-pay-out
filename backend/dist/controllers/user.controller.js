@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.rejectKycRequest = exports.approveKycRequest = exports.getKycRequests = exports.getMyKycRequest = exports.submitKycRequest = exports.updateKycStatus = exports.updateProfile = exports.deleteUser = exports.updateUser = exports.toggleUserStatus = exports.getUserById = exports.getUsers = exports.createUser = void 0;
+exports.updateWalletHold = exports.rejectKycRequest = exports.approveKycRequest = exports.getKycRequests = exports.getMyKycRequest = exports.submitKycRequest = exports.updateKycStatus = exports.updateProfile = exports.deleteUser = exports.updateUser = exports.toggleUserStatus = exports.getUserById = exports.getUsers = exports.createUser = void 0;
 const client_1 = require("@prisma/client");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const prisma_1 = __importDefault(require("../lib/prisma"));
@@ -580,3 +580,23 @@ const rejectKycRequest = async (req, res) => {
     await reviewKycRequest(req, res, client_1.KycStatus.REJECTED);
 };
 exports.rejectKycRequest = rejectKycRequest;
+const updateWalletHold = async (req, res) => {
+    const { minimumHold } = req.body;
+    const targetUserId = req.params.id;
+    if (req.user.role !== 'ADMIN') {
+        res.status(403).json({ success: false, message: 'Only admins can set wallet hold' });
+        return;
+    }
+    try {
+        const updated = await prisma_1.default.wallet.update({
+            where: { userId: targetUserId },
+            data: { minimumHold: new client_1.Prisma.Decimal(minimumHold) },
+        });
+        res.json({ success: true, minimumHold: updated.minimumHold });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+exports.updateWalletHold = updateWalletHold;

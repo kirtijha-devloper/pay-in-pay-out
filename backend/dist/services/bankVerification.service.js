@@ -290,8 +290,14 @@ async function verifyBankBeneficiary(userId, input) {
         };
     }
     const wallet = await prisma_1.default.wallet.findUnique({ where: { userId } });
-    if (!wallet || Number(wallet.balance) < feeValue) {
-        const error = new Error(`Insufficient balance. Verification fee: ₹${feeValue.toFixed(2)}`);
+    if (!wallet) {
+        const error = new Error('Wallet not found');
+        error.statusCode = 404;
+        throw error;
+    }
+    const availableBalance = Number(wallet.balance) - Number(wallet.minimumHold || 0);
+    if (availableBalance < feeValue) {
+        const error = new Error(`Insufficient balance. Available: ₹${availableBalance.toFixed(2)} (Hold: ₹${Number(wallet.minimumHold || 0).toFixed(2)})`);
         error.statusCode = 400;
         throw error;
     }

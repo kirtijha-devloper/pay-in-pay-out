@@ -18,7 +18,24 @@ const runtimeSchema_service_1 = require("./services/runtimeSchema.service");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
-app.use((0, cors_1.default)({ origin: true, credentials: true }));
+// Aggressive CORS for Vercel + Localhost
+app.use((0, cors_1.default)({
+    origin: ['http://localhost:5173', 'https://pay-in-pay-out.vercel.app'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+// Manual CORS fallback for Preflight (OPTIONS)
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    next();
+});
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
 app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../uploads')));
@@ -29,35 +46,48 @@ app.use('/api/services', service_routes_1.default);
 app.use('/api/commissions', commission_routes_1.default);
 app.use('/api/reports', report_routes_1.default);
 app.use('/api/payment/v2/payout/callback', branchx_routes_1.default);
-// Serve Frontend static files from frontend/dist
-const frontendDistPath = path_1.default.join(__dirname, '../../frontend/dist');
-app.use(express_1.default.static(frontendDistPath));
 // API Health Check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', message: 'payverse API is running', timestamp: new Date() });
 });
-// Catch-all middleware to serve Index.html for React Router
-app.use((req, res, next) => {
-    if (!req.path.startsWith('/api')) {
-        res.sendFile(path_1.default.join(frontendDistPath, 'index.html'), (err) => {
-            if (err) {
-                // If file doesn't exist, just continue (might be an API error or something else)
-                next();
-            }
-        });
+// Serve Frontend static files only in non-production
+if (process.env.NODE_ENV !== 'production') {
+    const frontendDistPath = path_1.default.join(__dirname, '../../frontend/dist');
+    app.use(express_1.default.static(frontendDistPath));
+    app.use((req, res, next) => {
+        if (!req.path.startsWith('/api')) {
+            res.sendFile(path_1.default.join(frontendDistPath, 'index.html'), (err) => {
+                if (err)
+                    next();
+            });
+        }
+        else {
+            next();
+        }
+    });
+}
+// For Vercel, we export the app. For local development, we call listen.
+const bootServer = async () => {
+    try {
+        if (process.env.NODE_ENV !== 'production') {
+            await (0, runtimeSchema_service_1.ensureRuntimeSchema)();
+            // Only start background jobs in local development
+            (0, branchxPayoutSync_1.startBranchxPayoutSyncJob)();
+        }
     }
-    else {
-        next();
+    catch (error) {
+        console.error('Server initialization error:', error);
     }
-});
-async function bootServer() {
-    await (0, runtimeSchema_service_1.ensureRuntimeSchema)();
-    (0, branchxPayoutSync_1.startBranchxPayoutSyncJob)();
+};
+if (process.env.NODE_ENV !== 'production') {
+    bootServer();
     app.listen(PORT, () => {
         console.log(`✅ payverse server running on http://localhost:${PORT}`);
     });
 }
-bootServer().catch((error) => {
-    console.error('Failed to start server', error);
-    process.exit(1);
-});
+else {
+    // On Vercel, just ensure we are exported
+    console.log('🚀 Serverless function initialized');
+}
+exports.default = app;
+// Force redeploy with corrected DATABASE_URL name

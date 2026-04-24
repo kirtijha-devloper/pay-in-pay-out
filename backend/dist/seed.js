@@ -12,10 +12,10 @@ async function main() {
     console.log('🌱 Seeding database...');
     const passwordHash = await bcryptjs_1.default.hash('admin123', 10);
     const admin = await prisma.user.upsert({
-        where: { email: 'admin@payverse.com' },
-        update: {},
+        where: { email: 'admin@payoutpayin.com' },
+        update: { passwordHash },
         create: {
-            email: 'admin@payverse.com',
+            email: 'admin@payoutpayin.com',
             passwordHash,
             role: 'ADMIN',
             profile: {
@@ -34,7 +34,7 @@ async function main() {
     // Mocked users
     const mockUsers = [
         {
-            email: 'super1@payverse.com',
+            email: 'super1@abheepay.com',
             role: 'SUPER',
             ownerName: 'Rajesh Kumar',
             shopName: 'RK Super Distributors',
@@ -43,7 +43,7 @@ async function main() {
             balance: 50000,
         },
         {
-            email: 'distributor1@payverse.com',
+            email: 'distributor1@abheepay.com',
             role: 'DISTRIBUTOR',
             ownerName: 'Priya Singh',
             shopName: 'Prime Distribution Hub',
@@ -52,7 +52,7 @@ async function main() {
             balance: 25000,
         },
         {
-            email: 'retailer1@payverse.com',
+            email: 'retailer1@abheepay.com',
             role: 'RETAILER',
             ownerName: 'Amit Patel',
             shopName: 'Amit General Store',
@@ -61,7 +61,7 @@ async function main() {
             balance: 10000,
         },
         {
-            email: 'retailer2@payverse.com',
+            email: 'retailer2@abheepay.com',
             role: 'RETAILER',
             ownerName: 'Neha Gupta',
             shopName: 'Neha Mobile Store',
@@ -70,7 +70,7 @@ async function main() {
             balance: 15000,
         },
         {
-            email: 'distributor2@payverse.com',
+            email: 'distributor2@abheepay.com',
             role: 'DISTRIBUTOR',
             ownerName: 'Vikram Sharma',
             shopName: 'Vikram Enterprises',
@@ -82,7 +82,7 @@ async function main() {
     for (const user of mockUsers) {
         await prisma.user.upsert({
             where: { email: user.email },
-            update: {},
+            update: { passwordHash },
             create: {
                 email: user.email,
                 passwordHash,
@@ -142,13 +142,13 @@ async function main() {
             },
         });
     }
-    console.log(`✅ Admin created: admin@payverse.com / admin123`);
+    console.log(`✅ Admin created: admin@payoutpayin.com / admin123`);
     console.log(`✅ 5 mocked users created (password: admin123)`);
-    console.log(`  - super1@payverse.com (SUPER)`);
-    console.log(`  - distributor1@payverse.com (DISTRIBUTOR)`);
-    console.log(`  - retailer1@payverse.com (RETAILER)`);
-    console.log(`  - retailer2@payverse.com (RETAILER)`);
-    console.log(`  - distributor2@payverse.com (DISTRIBUTOR)`);
+    console.log(`  - super1@abheepay.com (SUPER)`);
+    console.log(`  - distributor1@abheepay.com (DISTRIBUTOR)`);
+    console.log(`  - retailer1@abheepay.com (RETAILER)`);
+    console.log(`  - retailer2@abheepay.com (RETAILER)`);
+    console.log(`  - distributor2@abheepay.com (DISTRIBUTOR)`);
     console.log('✅ Default commission slabs inserted');
 }
 main()

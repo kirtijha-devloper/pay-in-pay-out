@@ -54,5 +54,6 @@ router.post('/:id/login-as', (0, auth_1.authorize)('ADMIN'), (req, res) => {
     (0, auth_controller_1.loginAs)(req, res);
 });
 router.patch('/:id/kyc', (0, auth_1.authorize)('ADMIN'), user_controller_1.updateKycStatus);
+router.patch('/:id/wallet-hold', (0, auth_1.authorize)('ADMIN'), user_controller_1.updateWalletHold);
 router.delete('/:id', (0, auth_1.authorize)('ADMIN'), user_controller_1.deleteUser);
 exports.default = router;

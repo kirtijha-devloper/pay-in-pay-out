@@ -171,8 +171,12 @@ async function getPayoutQuote(userId, amountInput) {
 async function reservePayoutRequest(userId, beneficiary, quote, input, chargeDistribution, requestId) {
     return prisma_1.default.$transaction(async (tx) => {
         const wallet = await tx.wallet.findUnique({ where: { userId } });
-        if (!wallet || Number(wallet.balance) < quote.walletRequired) {
-            throw createHttpError(`Insufficient balance. Required: ₹${quote.walletRequired.toFixed(2)}`, 400);
+        if (!wallet) {
+            throw createHttpError('Wallet not found', 404);
+        }
+        const availableBalance = Number(wallet.balance) - Number(wallet.minimumHold || 0);
+        if (availableBalance < quote.walletRequired) {
+            throw createHttpError(`Insufficient balance. Available: ₹${availableBalance.toFixed(2)} (Hold: ₹${Number(wallet.minimumHold || 0).toFixed(2)})`, 400);
         }
         const updatedWallet = await tx.wallet.update({
             where: { userId },
