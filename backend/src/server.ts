@@ -74,3 +74,4 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export default app;
+// Force redeploy with corrected DATABASE_URL name
