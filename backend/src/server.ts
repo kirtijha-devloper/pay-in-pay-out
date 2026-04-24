@@ -52,16 +52,27 @@ app.use((req, res, next) => {
   }
 });
 
-async function bootServer() {
-  await ensureRuntimeSchema();
-  startBranchxPayoutSyncJob();
+// For Vercel, we export the app. For local development, we call listen.
+const bootServer = async () => {
+  try {
+    // Only run schema check in non-serverless environments to avoid cold start delays
+    if (process.env.NODE_ENV !== 'production') {
+      await ensureRuntimeSchema();
+    }
+    startBranchxPayoutSyncJob();
+  } catch (error) {
+    console.error('Server initialization error:', error);
+  }
+};
 
+if (process.env.NODE_ENV !== 'production') {
+  bootServer();
   app.listen(PORT, () => {
     console.log(`✅ payverse server running on http://localhost:${PORT}`);
   });
+} else {
+  // In production (Vercel), we still want to trigger initialization
+  bootServer();
 }
 
-bootServer().catch((error) => {
-  console.error('Failed to start server', error);
-  process.exit(1);
-});
+export default app;
