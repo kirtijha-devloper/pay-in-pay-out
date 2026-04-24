@@ -1,9 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../lib/api';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  return context || { user: null, loading: true, login: () => {}, logout: () => {}, refreshUser: () => {} };
+};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -51,15 +54,21 @@ export const AuthProvider = ({ children }) => {
   }, [refreshUser]);
 
   const login = async (email, password) => {
-    const { data } = await api.post('/auth/login', { email: email.trim(), password });
-    if (data.success) {
-      // Normal sign-ins should use shared persistent auth.
-      sessionStorage.removeItem('token');
-      localStorage.setItem('token', data.token);
-      setUser(data.user);
-      return { success: true };
+    try {
+      const { data } = await api.post('/auth/login', { email: email.trim(), password });
+      if (data.success) {
+        // Normal sign-ins should use shared persistent auth.
+        sessionStorage.removeItem('token');
+        localStorage.setItem('token', data.token);
+        setUser(data.user);
+        return { success: true };
+      }
+      return { success: false, message: data.message };
+    } catch (err) {
+      console.error('Login error:', err);
+      const message = err.response?.data?.message || 'Login failed. Please check your credentials.';
+      return { success: false, message };
     }
-    return { success: false, message: data.message };
   };
 
   const logout = () => {
@@ -68,13 +77,13 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  if (loading) {
-    return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>;
-  }
-
   return (
-    <AuthContext.Provider value={{ user, login, logout, refreshUser }}>
-      {children}
+    <AuthContext.Provider value={{ user, login, logout, refreshUser, loading }}>
+      {loading ? (
+        <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 };

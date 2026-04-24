@@ -58,11 +58,12 @@ export default function Login() {
               <input
                 type="email"
                 required
-                placeholder="admin@payverse.com"
+                placeholder="admin@payoutpayin.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
+            <p className="text-muted text-xs mt-1">Hint: admin@payoutpayin.com / admin123</p>
           </div>
 
           <div className="input-group">

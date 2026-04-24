@@ -236,7 +236,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="p-6 h-[320px] w-full relative">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
