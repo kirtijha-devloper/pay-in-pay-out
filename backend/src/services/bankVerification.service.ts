@@ -358,8 +358,19 @@ export async function verifyBankBeneficiary(userId: string, input: BankVerificat
   }
 
   const wallet = await prisma.wallet.findUnique({ where: { userId } });
-  if (!wallet || Number(wallet.balance) < feeValue) {
-    const error = new Error(`Insufficient balance. Verification fee: ₹${feeValue.toFixed(2)}`);
+  if (!wallet) {
+    const error = new Error('Wallet not found');
+    (error as any).statusCode = 404;
+    throw error;
+  }
+
+  const availableBalance = Number(wallet.balance) - Number(wallet.minimumHold || 0);
+  if (availableBalance < feeValue) {
+    const error = new Error(
+      `Insufficient balance. Available: ₹${availableBalance.toFixed(2)} (Hold: ₹${Number(
+        wallet.minimumHold || 0
+      ).toFixed(2)})`
+    );
     (error as any).statusCode = 400;
     throw error;
   }

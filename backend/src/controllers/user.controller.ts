@@ -671,3 +671,25 @@ export const approveKycRequest = async (req: AuthRequest, res: Response) => {
 export const rejectKycRequest = async (req: AuthRequest, res: Response) => {
   await reviewKycRequest(req, res, KycStatus.REJECTED);
 };
+
+export const updateWalletHold = async (req: AuthRequest, res: Response) => {
+  const { minimumHold } = req.body;
+  const targetUserId = req.params.id as string;
+
+  if (req.user!.role !== 'ADMIN') {
+    res.status(403).json({ success: false, message: 'Only admins can set wallet hold' });
+    return;
+  }
+
+  try {
+    const updated = await prisma.wallet.update({
+      where: { userId: targetUserId },
+      data: { minimumHold: new Prisma.Decimal(minimumHold) },
+    });
+
+    res.json({ success: true, minimumHold: updated.minimumHold });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};

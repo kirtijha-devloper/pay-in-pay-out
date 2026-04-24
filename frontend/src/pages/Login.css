@@ -101,3 +101,23 @@
   width: 100%;
   box-shadow: var(--shadow-md);
 }
+
+.password-toggle {
+  position: absolute;
+  right: var(--space-4);
+  background: none;
+  border: none;
+  padding: var(--space-2);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+  border-radius: 50%;
+}
+
+.password-toggle:hover {
+  color: var(--color-primary);
+  background-color: var(--color-bg-gray);
+}

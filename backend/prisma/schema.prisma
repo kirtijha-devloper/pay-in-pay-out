@@ -29,14 +29,14 @@ model User {
   approvedServiceRequests    ServiceRequest[]      @relation("ServiceRequestApprovedBy")
   rejectedServiceRequests    ServiceRequest[]      @relation("ServiceRequestRejectedBy")
   services                   ServiceRequest[]
-  parent                     User?                 @relation("UserHierarchy", fields: [parentId], references: [id])
-  children                   User[]                @relation("UserHierarchy")
   overridesSet               UserCommissionSetup[] @relation("SetBy")
   overridesRecv              UserCommissionSetup[] @relation("Target")
   wallet                     Wallet?
   transactionsRecv           WalletTransaction[]   @relation("Receiver")
   transactionsSent           WalletTransaction[]   @relation("Sender")
   payoutBeneficiaries        PayoutBeneficiary[]
+  parent                     User?                 @relation("UserHierarchy", fields: [parentId], references: [id])
+  children                   User[]                @relation("UserHierarchy")
 
   @@map("users")
 }
@@ -62,11 +62,12 @@ model Profile {
 }
 
 model Wallet {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  balance   Decimal  @default(0.00) @db.Decimal(15, 2)
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  balance     Decimal  @default(0.00) @db.Decimal(15, 2)
+  minimumHold Decimal  @default(0.00) @db.Decimal(15, 2)
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model WalletTransaction {

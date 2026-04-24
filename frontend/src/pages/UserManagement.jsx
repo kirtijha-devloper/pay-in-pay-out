@@ -658,6 +658,85 @@ const UserChargesModal = ({ isOpen, onClose, targetUser }) => {
   );
 };
 
+const WalletHoldModal = ({ isOpen, onClose, user, onUpdated }) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [minimumHold, setMinimumHold] = useState(user?.wallet?.minimumHold || 0);
+
+  useEffect(() => {
+    if (isOpen && user) {
+      setMinimumHold(user.wallet?.minimumHold || 0);
+      setError('');
+    }
+  }, [isOpen, user]);
+
+  if (!isOpen || !user) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await api.patch(`/users/${user.id}/wallet-hold`, { minimumHold });
+      if (res.data.success) {
+        onUpdated();
+        onClose();
+      } else {
+        setError(res.data.message || 'Failed to update hold');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Server error occurred');
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden flex flex-col animate-fade-in shadow-2xl">
+        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white">
+          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <Banknote className="text-orange-500" size={24} /> Wallet Hold
+          </h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
+            <X size={20} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="bg-orange-50 p-3 rounded-lg text-xs text-orange-800 border border-orange-100">
+            Set a minimum balance that this user must always maintain in their wallet. They will not be able to use funds below this amount.
+          </div>
+
+          {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>}
+
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-500 uppercase">Minimum Hold Amount (₹)</label>
+            <input 
+              type="number" 
+              step="0.01" 
+              required 
+              value={minimumHold} 
+              onChange={(e) => setMinimumHold(e.target.value)} 
+              className="w-full text-lg font-bold"
+              placeholder="0.00"
+            />
+          </div>
+
+          <div className="pt-4 flex justify-end gap-3">
+            <button type="button" onClick={onClose} className="btn btn-outline" disabled={loading}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary min-w-[120px]" disabled={loading}>
+              {loading ? 'Saving...' : 'Set Hold'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 export default function UserManagement() {
   const { user } = useAuth();
   const [users, setUsers] = useState([]);
@@ -669,11 +748,13 @@ export default function UserManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isChargesModalOpen, setIsChargesModalOpen] = useState(false);
+  const [isHoldModalOpen, setIsHoldModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
 
   const canManageUsers = ['ADMIN', 'SUPER', 'DISTRIBUTOR'].includes(user.role);
   const canDeleteUsers = user.role === 'ADMIN';
+  const canSetHold = user.role === 'ADMIN';
   const canImpersonate = user.role === 'ADMIN';
   const filterRoles = getAvailableRoles(user.role);
 
@@ -882,8 +963,15 @@ export default function UserManagement() {
                       <HierarchyStack user={managedUser} />
                     </td>
                     <td>
-                      <div className="font-medium text-emerald-600">
-                        Rs {Number(managedUser.wallet?.balance || 0).toFixed(2)}
+                      <div className="flex flex-col">
+                        <div className="font-medium text-emerald-600">
+                          Rs {Number(managedUser.wallet?.balance || 0).toFixed(2)}
+                        </div>
+                        {Number(managedUser.wallet?.minimumHold || 0) > 0 && (
+                          <div className="text-[10px] font-bold text-orange-600 flex items-center gap-0.5" title="Minimum balance hold">
+                            <Banknote size={10} /> Hold: ₹{Number(managedUser.wallet.minimumHold).toFixed(0)}
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td>
@@ -942,6 +1030,19 @@ export default function UserManagement() {
                               >
                                 <Settings size={16} /> Edit Charges
                               </button>
+
+                              {canSetHold && (
+                                <button
+                                  onClick={() => {
+                                    setSelectedUser(managedUser);
+                                    setIsHoldModalOpen(true);
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="w-full text-left px-4 py-3 hover:bg-orange-50 text-orange-600 flex items-center gap-3 border-b border-gray-50 text-sm font-medium whitespace-nowrap transition-colors"
+                                >
+                                  <Banknote size={16} /> Wallet Hold
+                                </button>
+                              )}
 
                               {canImpersonate && (
                                 <button
@@ -1009,6 +1110,12 @@ export default function UserManagement() {
         isOpen={isChargesModalOpen}
         onClose={() => setIsChargesModalOpen(false)}
         targetUser={selectedUser}
+      />
+      <WalletHoldModal
+        isOpen={isHoldModalOpen}
+        onClose={() => setIsHoldModalOpen(false)}
+        user={selectedUser}
+        onUpdated={fetchUsers}
       />
     </div>
   );

@@ -15,6 +15,7 @@ import {
   getMyKycRequest,
   rejectKycRequest,
   submitKycRequest,
+  updateWalletHold,
 } from '../controllers/user.controller';
 import { loginAs } from '../controllers/auth.controller';
 import { authenticate, authorize } from '../middleware/auth';
@@ -74,6 +75,7 @@ router.post('/:id/login-as', authorize('ADMIN'), (req, res) => {
   loginAs(req, res);
 });
 router.patch('/:id/kyc', authorize('ADMIN'), updateKycStatus);
+router.patch('/:id/wallet-hold', authorize('ADMIN'), updateWalletHold);
 router.delete('/:id', authorize('ADMIN'), deleteUser);
 
 export default router;
