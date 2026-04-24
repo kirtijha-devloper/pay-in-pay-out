@@ -24,6 +24,19 @@ const Placeholder = ({ title }) => (
 );
 
 function App() {
+  React.useEffect(() => {
+    const url = new URL(window.location.href);
+    const redirect = url.searchParams.get('redirect');
+
+    if (!redirect) {
+      return;
+    }
+
+    url.searchParams.delete('redirect');
+    const nextUrl = new URL(redirect, window.location.origin);
+    window.history.replaceState({}, '', `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+  }, []);
+
   return (
     <BrowserRouter>
       <AuthProvider>

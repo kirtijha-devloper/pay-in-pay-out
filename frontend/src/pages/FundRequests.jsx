@@ -20,7 +20,7 @@ function formatAmount(value) {
 function resolveUploadUrl(filePath) {
   if (!filePath) return '';
   if (filePath.startsWith('http://') || filePath.startsWith('https://')) return filePath;
-  const baseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api').replace(/\/api\/?$/, '');
+  const baseUrl = getApiOrigin();
   return `${baseUrl}/${String(filePath).replace(/^\/+/, '')}`;
 }
 
@@ -395,3 +395,4 @@ export default function FundRequests() {
     </div>
   );
 }
+import { getApiOrigin } from '../lib/apiBaseUrl';

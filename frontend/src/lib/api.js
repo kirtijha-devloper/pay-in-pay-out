@@ -1,7 +1,8 @@
 import axios from 'axios';
+import { getApiBaseUrl } from './apiBaseUrl';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? 'https://abheepayqr02.vercel.app/api' : 'http://localhost:5000/api'),
+  baseURL: getApiBaseUrl(),
 });
 
 api.interceptors.request.use((config) => {
