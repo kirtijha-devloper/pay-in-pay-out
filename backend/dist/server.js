@@ -14,6 +14,7 @@ const service_routes_1 = __importDefault(require("./routes/service.routes"));
 const commission_routes_1 = __importDefault(require("./routes/commission.routes"));
 const report_routes_1 = __importDefault(require("./routes/report.routes"));
 const branchxPayoutSync_1 = require("./jobs/branchxPayoutSync");
+const uploads_1 = require("./lib/uploads");
 const runtimeSchema_service_1 = require("./services/runtimeSchema.service");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -38,7 +39,7 @@ app.use((req, res, next) => {
 });
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
-app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../uploads')));
+app.use('/uploads', express_1.default.static((0, uploads_1.getUploadRoot)()));
 // Routes
 app.use('/api/auth', auth_routes_1.default);
 app.use('/api/users', user_routes_1.default);
@@ -86,8 +87,6 @@ if (process.env.NODE_ENV !== 'production') {
     });
 }
 else {
-    // On Vercel, just ensure we are exported
     console.log('🚀 Serverless function initialized');
 }
 exports.default = app;
-// Force redeploy with corrected DATABASE_URL name

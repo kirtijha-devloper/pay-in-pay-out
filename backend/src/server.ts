@@ -9,6 +9,7 @@ import serviceRoutes from './routes/service.routes';
 import commissionRoutes from './routes/commission.routes';
 import reportRoutes from './routes/report.routes';
 import { startBranchxPayoutSyncJob } from './jobs/branchxPayoutSync';
+import { getUploadRoot } from './lib/uploads';
 import { ensureRuntimeSchema } from './services/runtimeSchema.service';
 
 dotenv.config();
@@ -39,7 +40,7 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(getUploadRoot()));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -89,9 +90,7 @@ if (process.env.NODE_ENV !== 'production') {
     console.log(`✅ payverse server running on http://localhost:${PORT}`);
   });
 } else {
-  // On Vercel, just ensure we are exported
   console.log('🚀 Serverless function initialized');
 }
 
 export default app;
-// Force redeploy with corrected DATABASE_URL name

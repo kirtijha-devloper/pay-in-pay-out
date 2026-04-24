@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
+import { getUploadRoot } from '../lib/uploads';
 import {
   getCompanyBankAccounts,
   getBankVerificationFee,
@@ -23,7 +24,7 @@ const router = Router();
 router.use(authenticate);
 
 const storage = multer.diskStorage({
-  destination: 'uploads/',
+  destination: getUploadRoot(),
   filename: (req, file, cb) => {
     cb(null, `${Date.now()}-${file.originalname}`);
   },

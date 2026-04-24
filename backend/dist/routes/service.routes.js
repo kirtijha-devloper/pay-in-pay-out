@@ -6,13 +6,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
+const uploads_1 = require("../lib/uploads");
 const service_controller_1 = require("../controllers/service.controller");
 const branchx_controller_1 = require("../controllers/branchx.controller");
 const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
 router.use(auth_1.authenticate);
 const storage = multer_1.default.diskStorage({
-    destination: 'uploads/',
+    destination: (0, uploads_1.getUploadRoot)(),
     filename: (req, file, cb) => {
         cb(null, `${Date.now()}-${file.originalname}`);
     },
