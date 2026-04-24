@@ -29,37 +29,35 @@ app.use('/api/commissions', commissionRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/payment/v2/payout/callback', branchxRoutes);
 
-// Serve Frontend static files from frontend/dist
-const frontendDistPath = path.join(__dirname, '../../frontend/dist');
-app.use(express.static(frontendDistPath));
-
 // API Health Check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'payverse API is running', timestamp: new Date() });
 });
 
-// Catch-all middleware to serve Index.html for React Router
-app.use((req, res, next) => {
-  if (!req.path.startsWith('/api')) {
-    res.sendFile(path.join(frontendDistPath, 'index.html'), (err) => {
-      if (err) {
-        // If file doesn't exist, just continue (might be an API error or something else)
-        next();
-      }
-    });
-  } else {
-    next();
-  }
-});
+// Serve Frontend static files only in non-production
+if (process.env.NODE_ENV !== 'production') {
+  const frontendDistPath = path.join(__dirname, '../../frontend/dist');
+  app.use(express.static(frontendDistPath));
+  
+  app.use((req, res, next) => {
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(path.join(frontendDistPath, 'index.html'), (err) => {
+        if (err) next();
+      });
+    } else {
+      next();
+    }
+  });
+}
 
 // For Vercel, we export the app. For local development, we call listen.
 const bootServer = async () => {
   try {
-    // Only run schema check in non-serverless environments to avoid cold start delays
     if (process.env.NODE_ENV !== 'production') {
       await ensureRuntimeSchema();
+      // Only start background jobs in local development
+      startBranchxPayoutSyncJob();
     }
-    startBranchxPayoutSyncJob();
   } catch (error) {
     console.error('Server initialization error:', error);
   }
@@ -71,8 +69,8 @@ if (process.env.NODE_ENV !== 'production') {
     console.log(`✅ payverse server running on http://localhost:${PORT}`);
   });
 } else {
-  // In production (Vercel), we still want to trigger initialization
-  bootServer();
+  // On Vercel, just ensure we are exported
+  console.log('🚀 Serverless function initialized');
 }
 
 export default app;
