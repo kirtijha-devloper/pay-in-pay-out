@@ -7,6 +7,254 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                         String                @id @default(uuid())
+  email                      String                @unique
+  passwordHash               String
+  role                       Role                  @default(RETAILER)
+  isActive                   Boolean               @default(true)
+  createdAt                  DateTime              @default(now())
+  updatedAt                  DateTime              @updatedAt
+  parentId                   String?
+  kycStatus                  KycStatus             @default(PENDING)
+  transactionPinHash         String?
+  transactionPinUpdatedAt    DateTime?
+  qrCodePath                 String?
+  defaultSlabsSet            CommissionSlab[]      @relation("DefaultCommissionSetBy")
+  companyBankAccountsCreated CompanyBankAccount[]  @relation("CompanyBankAccountCreatedBy")
+  companyBankAccountsUpdated CompanyBankAccount[]  @relation("CompanyBankAccountUpdatedBy")
+  kycRequestsReviewed        KycRequest[]          @relation("KycRequestReviewedBy")
+  kycRequests                KycRequest[]
+  profile                    Profile?
+  approvedServiceRequests    ServiceRequest[]      @relation("ServiceRequestApprovedBy")
+  rejectedServiceRequests    ServiceRequest[]      @relation("ServiceRequestRejectedBy")
+  services                   ServiceRequest[]
+  parent                     User?                 @relation("UserHierarchy", fields: [parentId], references: [id])
+  children                   User[]                @relation("UserHierarchy")
+  overridesSet               UserCommissionSetup[] @relation("SetBy")
+  overridesRecv              UserCommissionSetup[] @relation("Target")
+  wallet                     Wallet?
+  transactionsRecv           WalletTransaction[]   @relation("Receiver")
+  transactionsSent           WalletTransaction[]   @relation("Sender")
+  payoutBeneficiaries        PayoutBeneficiary[]
+
+  @@map("User")
+}
+
+model Profile {
+  id               String  @id @default(uuid())
+  userId           String  @unique
+  ownerName        String
+  shopName         String
+  mobileNumber     String  @unique
+  fullAddress      String
+  state            String
+  pinCode          String
+  aadhaarNumber    String?
+  aadhaarFrontPath String?
+  aadhaarBackPath  String?
+  panCardPath      String?
+  accountName      String?
+  accountNumber    String?
+  bankName         String?
+  ifscCode         String?
+  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Wallet {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  balance   Decimal  @default(0.00) @db.Decimal(15, 2)
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WalletTransaction {
+  id               String          @id @default(uuid())
+  amount           Decimal         @db.Decimal(15, 2)
+  type             String
+  description      String?
+  status           RequestStatus   @default(SUCCESS)
+  senderId         String?
+  senderBalAfter   Decimal?        @db.Decimal(15, 2)
+  receiverId       String
+  receiverBalAfter Decimal         @db.Decimal(15, 2)
+  createdAt        DateTime        @default(now())
+  serviceRequestId String?
+  receiver         User            @relation("Receiver", fields: [receiverId], references: [id])
+  sender           User?           @relation("Sender", fields: [senderId], references: [id])
+  serviceRequest   ServiceRequest? @relation("ServiceRequestWalletTransactions", fields: [serviceRequestId], references: [id])
+}
+
+model CompanyBankAccount {
+  id              String           @id @default(uuid())
+  bankName        String
+  accountNumber   String           @unique
+  ifscCode        String
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  createdById     String?
+  updatedById     String?
+  qrCodePath      String?
+  createdBy       User?            @relation("CompanyBankAccountCreatedBy", fields: [createdById], references: [id])
+  updatedBy       User?            @relation("CompanyBankAccountUpdatedBy", fields: [updatedById], references: [id])
+  serviceRequests ServiceRequest[]
+}
+
+model KycRequest {
+  id            String    @id @default(uuid())
+  userId        String
+  fullName      String
+  dateOfBirth   DateTime?
+  gender        String?
+  aadhaarNumber String
+  panNumber     String?
+  kycPhotoPath  String?
+  status        String    @default("PENDING")
+  reviewedById  String?
+  reviewedAt    DateTime?
+  reviewRemark  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  reviewedBy    User?     @relation("KycRequestReviewedBy", fields: [reviewedById], references: [id])
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, createdAt])
+  @@index([status, createdAt])
+}
+
+model BankVerificationFee {
+  id        String   @id @default("BANK_VERIFICATION")
+  amount    Decimal  @default(0.00) @db.Decimal(15, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PayoutBeneficiary {
+  id                 String    @id @default(uuid())
+  userId             String
+  payeeName          String    @map("payee_name")
+  accountNo          String    @map("account_no")
+  bankIfsc           String    @map("bank_ifsc")
+  bankName           String    @map("bank_name")
+  isVerified         Boolean   @default(false) @map("is_verified")
+  verifiedAt         DateTime? @map("verified_at")
+  providerRef        String?   @map("provider_ref")
+  providerStatusCode String?   @map("provider_status_code")
+  providerResponse   String?   @map("provider_response")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, accountNo, bankIfsc])
+  @@index([userId])
+  @@map("payout_beneficiaries")
+}
+
+model CommissionSlab {
+  id              String   @id @default(uuid())
+  serviceType     String
+  applyOnRole     Role
+  commissionType  String
+  commissionValue Decimal  @default(0.00) @db.Decimal(15, 2)
+  minAmount       Decimal  @default(0.00) @db.Decimal(15, 2)
+  maxAmount       Decimal? @db.Decimal(15, 2)
+  isActive        Boolean  @default(true)
+  setById         String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  qrCodePath      String?
+  setBy           User     @relation("DefaultCommissionSetBy", fields: [setById], references: [id])
+
+  @@index([setById, serviceType, applyOnRole, isActive])
+}
+
+model UserCommissionSetup {
+  id              String   @id @default(uuid())
+  setById         String
+  targetUserId    String
+  serviceType     String
+  commissionType  String
+  commissionValue Decimal  @default(0.00) @db.Decimal(15, 2)
+  minAmount       Decimal  @default(0.00) @db.Decimal(15, 2)
+  maxAmount       Decimal? @db.Decimal(15, 2)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  qrCodePath      String?
+  setBy           User     @relation("SetBy", fields: [setById], references: [id])
+  targetUser      User     @relation("Target", fields: [targetUserId], references: [id])
+
+  @@index([setById, targetUserId, serviceType, isActive])
+}
+
+model ServiceRequest {
+  id                    String                 @id @default(uuid())
+  userId                String
+  serviceType           String
+  amount                Decimal?               @db.Decimal(15, 2)
+  bankRef               String?
+  paymentDate           DateTime?
+  paymentMode           String?
+  remark                String?
+  bankName              String?
+  accountName           String?
+  accountNumber         String?
+  ifscCode              String?
+  status                RequestStatus          @default(PENDING)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  chargeAmount          Decimal?               @db.Decimal(15, 2)
+  creditedAmount        Decimal?               @db.Decimal(15, 2)
+  receiptPath           String?
+  companyBankAccountId  String?
+  approvedById          String?
+  approvedAt            DateTime?
+  rejectedById          String?
+  rejectedAt            DateTime?
+  chargeDistribution    String?
+  providerStatus        String?
+  providerStatusCode    String?
+  providerResponse      String?
+  callbackStatus        String?
+  callbackData          String?
+  callbackReceivedAt    DateTime?
+  callbackRequestId     String?
+  callbackOpRefId       String?
+  callbackApiTxnId      String?
+  branchxCallbackAudits BranchxCallbackAudit[]
+  approvedBy            User?                  @relation("ServiceRequestApprovedBy", fields: [approvedById], references: [id])
+  companyBankAccount    CompanyBankAccount?    @relation(fields: [companyBankAccountId], references: [id])
+  rejectedBy            User?                  @relation("ServiceRequestRejectedBy", fields: [rejectedById], references: [id])
+  user                  User                   @relation(fields: [userId], references: [id])
+  walletTransactions    WalletTransaction[]    @relation("ServiceRequestWalletTransactions")
+}
+
+model BranchxCallbackAudit {
+  id                String          @id @default(uuid())
+  serviceRequestId  String?
+  requestIdentifier String?
+  sourceIp          String
+  forwardedFor      String?
+  method            String
+  rawStatus         String?
+  normalizedStatus  String?
+  payload           String?
+  userAgent         String?
+  createdAt         DateTime        @default(now())
+  serviceRequest    ServiceRequest? @relation(fields: [serviceRequestId], references: [id])
+
+  @@index([sourceIp, createdAt])
+  @@index([serviceRequestId, createdAt])
+}
+
+model playing_with_neon {
+  id    Int    @id @default(autoincrement())
+  name  String
+  value Float? @db.Real
+}
+
 enum Role {
   ADMIN
   SUPER
@@ -24,257 +272,4 @@ enum KycStatus {
   PENDING
   VERIFIED
   REJECTED
-}
-
-model User {
-  id               String   @id @default(uuid())
-  email            String   @unique
-  passwordHash     String
-  role             Role     @default(RETAILER)
-  isActive       Boolean  @default(true)
-  qrCodePath     String?
-  kycStatus        KycStatus @default(PENDING)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  profile          Profile?
-  wallet           Wallet?
-  transactionPinHash String?
-  transactionPinUpdatedAt DateTime?
-
-  // Hierarchy bindings
-  children         User[]   @relation("UserHierarchy")
-  parent           User?    @relation("UserHierarchy", fields: [parentId], references: [id])
-  parentId         String?
-
-  services         ServiceRequest[]
-  transactionsSent WalletTransaction[] @relation("Sender")
-  transactionsRecv WalletTransaction[] @relation("Receiver")
-  approvedServiceRequests ServiceRequest[] @relation("ServiceRequestApprovedBy")
-  rejectedServiceRequests ServiceRequest[] @relation("ServiceRequestRejectedBy")
-  kycRequests        KycRequest[]
-  kycRequestsReviewed KycRequest[] @relation("KycRequestReviewedBy")
-  companyBankAccountsCreated CompanyBankAccount[] @relation("CompanyBankAccountCreatedBy")
-  companyBankAccountsUpdated CompanyBankAccount[] @relation("CompanyBankAccountUpdatedBy")
-  payoutBeneficiaries PayoutBeneficiary[]
-  
-  defaultSlabsSet  CommissionSlab[]      @relation("DefaultCommissionSetBy")
-  overridesSet     UserCommissionSetup[] @relation("SetBy")
-  overridesRecv    UserCommissionSetup[] @relation("Target")
-}
-
-model Profile {
-  id               String   @id @default(uuid())
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId           String   @unique
-  ownerName        String
-  shopName         String
-  mobileNumber     String   @unique
-  fullAddress      String
-  state            String
-  pinCode          String
-  aadhaarNumber    String?
-  aadhaarFrontPath String?
-  aadhaarBackPath  String?
-  panCardPath      String?
-  bankName         String?
-  accountNumber    String?
-  accountName      String?
-  ifscCode         String?
-}
-
-model Wallet {
-  id        String   @id @default(uuid())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String   @unique
-  balance   Decimal  @default(0.00) @db.Decimal(15, 2)
-  updatedAt DateTime @updatedAt
-}
-
-model WalletTransaction {
-  id               String   @id @default(uuid())
-  amount           Decimal  @db.Decimal(15, 2)
-  type             String   // CREDIT, DEBIT
-  description      String?
-  status           RequestStatus @default(SUCCESS)
-  
-  sender           User?    @relation("Sender", fields: [senderId], references: [id])
-  senderId         String?
-  senderBalAfter   Decimal? @db.Decimal(15, 2)
-  
-  receiver         User     @relation("Receiver", fields: [receiverId], references: [id])
-  receiverId       String
-  receiverBalAfter Decimal  @db.Decimal(15, 2)
-  serviceRequest   ServiceRequest? @relation("ServiceRequestWalletTransactions", fields: [serviceRequestId], references: [id], onDelete: SetNull)
-  serviceRequestId String?
-
-  createdAt        DateTime @default(now())
-}
-
-model CompanyBankAccount {
-  id             String   @id @default(uuid())
-  bankName       String
-  accountNumber  String   @unique
-  ifscCode       String
-  isActive       Boolean  @default(true)
-  qrCodePath     String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  createdBy      User?    @relation("CompanyBankAccountCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  createdById    String?
-  updatedBy      User?    @relation("CompanyBankAccountUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  updatedById    String?
-
-  serviceRequests ServiceRequest[]
-}
-
-model KycRequest {
-  id               String   @id @default(uuid())
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId           String
-  fullName         String
-  dateOfBirth      DateTime?
-  gender           String?
-  aadhaarNumber    String
-  panNumber        String?
-  kycPhotoPath     String?
-  status           String   @default("PENDING")
-  reviewedBy       User?    @relation("KycRequestReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
-  reviewedById     String?
-  reviewedAt       DateTime?
-  reviewRemark     String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  @@index([userId, status, createdAt])
-  @@index([status, createdAt])
-}
-
-model BankVerificationFee {
-  id          String   @id @default("BANK_VERIFICATION")
-  amount      Decimal  @default(0.00) @db.Decimal(15, 2)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model PayoutBeneficiary {
-  id              String   @id @default(uuid())
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId          String
-  payeeName       String   @map("payee_name")
-  accountNo       String   @map("account_no")
-  bankIfsc        String   @map("bank_ifsc")
-  bankName        String   @map("bank_name")
-  isVerified      Boolean  @default(false) @map("is_verified")
-  verifiedAt      DateTime? @map("verified_at")
-  providerRef     String?  @map("provider_ref")
-  providerStatusCode String? @map("provider_status_code")
-  providerResponse String?  @map("provider_response")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([userId, accountNo, bankIfsc])
-  @@map("payout_beneficiaries")
-}
-
-model CommissionSlab {
-  id              String   @id @default(uuid())
-  setBy           User     @relation("DefaultCommissionSetBy", fields: [setById], references: [id])
-  setById         String
-  serviceType     String   // PAYOUT, ADD_FUND, TRANSACTION
-  applyOnRole     Role
-  commissionType  String   // FLAT, PERCENTAGE
-  commissionValue Decimal  @default(0.00) @db.Decimal(15, 2)
-  minAmount       Decimal  @default(0.00) @db.Decimal(15, 2)
-  maxAmount       Decimal? @db.Decimal(15, 2)
-  isActive       Boolean  @default(true)
-  qrCodePath     String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([setById, serviceType, applyOnRole, isActive])
-}
-
-model UserCommissionSetup {
-  id              String   @id @default(uuid())
-  setBy           User     @relation("SetBy", fields: [setById], references: [id])
-  setById         String
-  targetUser      User     @relation("Target", fields: [targetUserId], references: [id])
-  targetUserId    String
-  serviceType     String
-  commissionType  String   // FLAT, PERCENTAGE
-  commissionValue Decimal  @default(0.00) @db.Decimal(15, 2)
-  minAmount       Decimal  @default(0.00) @db.Decimal(15, 2)
-  maxAmount       Decimal? @db.Decimal(15, 2)
-  isActive       Boolean  @default(true)
-  qrCodePath     String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([setById, targetUserId, serviceType, isActive])
-}
-
-model ServiceRequest {
-  id               String   @id @default(uuid())
-  user             User     @relation(fields: [userId], references: [id])
-  userId           String
-  serviceType      String   // BANK_VERIFICATION, FUND_REQUEST, PAYOUT
-  amount           Decimal? @db.Decimal(15,2)
-  chargeAmount     Decimal? @db.Decimal(15,2)
-  creditedAmount   Decimal? @db.Decimal(15,2)
-  chargeDistribution String?
-  providerStatus   String?
-  providerStatusCode String?
-  providerResponse String?
-  callbackStatus   String?
-  callbackData     String?
-  callbackReceivedAt DateTime?
-  callbackRequestId String?
-  callbackOpRefId  String?
-  callbackApiTxnId String?
-  bankRef          String?
-  paymentDate      DateTime?
-  paymentMode      String?
-  remark           String?
-  receiptPath      String?
-  
-  // Bank details mapping
-  bankName         String?
-  accountName      String?
-  accountNumber    String?
-  ifscCode         String?
-  companyBankAccount CompanyBankAccount? @relation(fields: [companyBankAccountId], references: [id], onDelete: SetNull)
-  companyBankAccountId String?
-  approvedBy       User?    @relation("ServiceRequestApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
-  approvedById     String?
-  approvedAt       DateTime?
-  rejectedBy       User?    @relation("ServiceRequestRejectedBy", fields: [rejectedById], references: [id], onDelete: SetNull)
-  rejectedById     String?
-  rejectedAt       DateTime?
-
-  walletTransactions WalletTransaction[] @relation("ServiceRequestWalletTransactions")
-  branchxCallbackAudits BranchxCallbackAudit[]
-
-  status           RequestStatus @default(PENDING)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-}
-
-model BranchxCallbackAudit {
-  id               String   @id @default(uuid())
-  serviceRequest   ServiceRequest? @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
-  serviceRequestId String?
-  requestIdentifier String?
-  sourceIp         String
-  forwardedFor     String?
-  method           String
-  rawStatus        String?
-  normalizedStatus String?
-  payload          String?
-  userAgent        String?
-  createdAt        DateTime @default(now())
-
-  @@index([sourceIp, createdAt])
-  @@index([serviceRequestId, createdAt])
 }

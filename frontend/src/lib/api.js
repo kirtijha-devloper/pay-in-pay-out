@@ -17,11 +17,14 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
-      // Clear tokens on any 401 (except login)
-      if (!error.config.url.endsWith('/auth/login')) {
-        localStorage.removeItem('token');
-        sessionStorage.removeItem('token');
+    if (error.response) {
+      console.error('Server error data:', error.response.data);
+      if (error.response.status === 401) {
+        // Clear tokens on any 401 (except login)
+        if (!error.config.url.endsWith('/auth/login')) {
+          localStorage.removeItem('token');
+          sessionStorage.removeItem('token');
+        }
       }
     }
     return Promise.reject(error);
