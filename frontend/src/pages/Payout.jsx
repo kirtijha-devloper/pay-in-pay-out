@@ -248,13 +248,14 @@ export default function Payout() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500 uppercase">Verified Beneficiary</label>
+            <div className="form-group">
+              <label className="form-label">Verified Beneficiary</label>
               <select
                 required
                 value={formData.beneficiaryId}
                 onChange={(event) => setFormData({ ...formData, beneficiaryId: event.target.value })}
                 disabled={beneficiariesLoading || beneficiaries.length === 0}
+                className="form-input form-select"
               >
                 <option value="">{beneficiariesLoading ? 'Loading beneficiaries...' : 'Select verified beneficiary'}</option>
                 {beneficiaries.map((beneficiary) => (
@@ -274,8 +275,8 @@ export default function Payout() {
               )}
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500 uppercase">Payout Amount (₹)</label>
+            <div className="form-group">
+              <label className="form-label">Payout Amount (₹)</label>
               <input
                 type="number"
                 required
@@ -284,26 +285,27 @@ export default function Payout() {
                 placeholder="0.00"
                 value={formData.amount}
                 onChange={(event) => setFormData({ ...formData, amount: event.target.value })}
-                className="text-lg font-bold py-3"
+                className="form-input text-xl font-bold py-3"
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500 uppercase">Transfer Mode</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="form-group">
+                <label className="form-label">Transfer Mode</label>
                 <select
                   value={formData.transferMode}
                   onChange={(event) => setFormData({ ...formData, transferMode: event.target.value })}
+                  className="form-input form-select"
                 >
-                  <option value="IMPS">IMPS</option>
-                  <option value="NEFT">NEFT</option>
-                  <option value="RTGS">RTGS</option>
-                  <option value="UPI">UPI</option>
+                  <option value="IMPS">IMPS (Instant)</option>
+                  <option value="NEFT">NEFT (Same day)</option>
+                  <option value="RTGS">RTGS (High value)</option>
+                  <option value="UPI">UPI (Alias)</option>
                 </select>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500 uppercase">Transaction PIN</label>
+              <div className="form-group">
+                <label className="form-label">Transaction PIN</label>
                 <input
                   type="password"
                   required
@@ -311,6 +313,7 @@ export default function Payout() {
                   placeholder="Enter your TPIN"
                   value={formData.tpin}
                   onChange={(event) => setFormData({ ...formData, tpin: event.target.value })}
+                  className="form-input"
                 />
               </div>
             </div>
@@ -356,13 +359,14 @@ export default function Payout() {
               </span>
             </label>
 
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500 uppercase">Remark</label>
+            <div className="form-group">
+              <label className="form-label">Remark</label>
               <input
                 type="text"
                 placeholder="Optional remark for this payout"
                 value={formData.remark}
                 onChange={(event) => setFormData({ ...formData, remark: event.target.value })}
+                className="form-input"
               />
             </div>
 
@@ -381,7 +385,7 @@ export default function Payout() {
 
             <button
               type="submit"
-              className="btn btn-primary w-full py-4 text-base shadow-lg shadow-blue-100"
+              className="btn-premium btn-premium-primary w-full py-4 text-base shadow-lg shadow-blue-100"
               disabled={
                 loading ||
                 beneficiariesLoading ||
@@ -391,7 +395,7 @@ export default function Payout() {
                 !formData.confirmVerified
               }
             >
-              {loading ? 'Processing Transaction...' : 'Initiate Payout'}
+              {loading ? <RefreshCw className="animate-spin" size={20} /> : 'Initiate Secure Payout'}
             </button>
 
             <p className="text-[10px] text-center text-gray-400 italic">

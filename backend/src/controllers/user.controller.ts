@@ -10,6 +10,7 @@ import {
   fetchHierarchyUsers,
   getDescendantIds,
 } from '../services/userHierarchy.service';
+import { notifyAdminsAndUser } from '../services/notification.service';
 
 const CREATION_PERMISSIONS: Record<string, Role[]> = {
   ADMIN: ['SUPER', 'DISTRIBUTOR', 'RETAILER'],
@@ -154,6 +155,13 @@ export const createUser = async (req: AuthRequest, res: Response) => {
 
     const hierarchyUsers = await fetchHierarchyUsers();
 
+    await notifyAdminsAndUser(
+      user.id,
+      'New User Created',
+      `${user.email} (${user.role}) account has been created by ${req.user!.role}.`,
+      'SUCCESS'
+    );
+
     res.status(201).json({
       success: true,
       user: sanitizeUser(decorateUserWithHierarchy(user, hierarchyUsers)),
@@ -167,6 +175,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
 export const getUsers = async (req: AuthRequest, res: Response) => {
   const filterRole = req.query.role as string | undefined;
   const status = req.query.status as string | undefined;
+  const search = req.query.search as string | undefined;
   const page = (req.query.page as string) || '1';
   const limit = (req.query.limit as string) || '20';
   const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
@@ -189,6 +198,15 @@ export const getUsers = async (req: AuthRequest, res: Response) => {
     if (status === 'active') where.isActive = true;
     if (status === 'inactive') where.isActive = false;
 
+    if (search) {
+      where.OR = [
+        { email: { contains: search, mode: 'insensitive' } },
+        { profile: { ownerName: { contains: search, mode: 'insensitive' } } },
+        { profile: { shopName: { contains: search, mode: 'insensitive' } } },
+        { profile: { mobileNumber: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
@@ -206,6 +224,52 @@ export const getUsers = async (req: AuthRequest, res: Response) => {
       total,
       page: parseInt(page, 10),
       limit: take,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const searchUsers = async (req: AuthRequest, res: Response) => {
+  const query = req.query.q as string | undefined;
+  if (!query) {
+    res.json({ success: true, users: [] });
+    return;
+  }
+
+  try {
+    const hierarchyUsers = await fetchHierarchyUsers();
+    const visibleUserIds = getDescendantIds(req.user!.id, hierarchyUsers);
+
+    if (visibleUserIds.length === 0) {
+      res.json({ success: true, users: [] });
+      return;
+    }
+
+    const users = await prisma.user.findMany({
+      where: {
+        id: { in: visibleUserIds },
+        OR: [
+          { email: { contains: query, mode: 'insensitive' } },
+          { profile: { ownerName: { contains: query, mode: 'insensitive' } } },
+          { profile: { shopName: { contains: query, mode: 'insensitive' } } },
+          { profile: { mobileNumber: { contains: query, mode: 'insensitive' } } },
+        ],
+      },
+      take: 10,
+      include: { profile: true },
+    });
+
+    res.json({
+      success: true,
+      users: users.map((u) => ({
+        id: u.id,
+        email: u.email,
+        role: u.role,
+        ownerName: u.profile?.ownerName,
+        shopName: u.profile?.shopName,
+      })),
     });
   } catch (err) {
     console.error(err);
@@ -279,6 +343,13 @@ export const toggleUserStatus = async (req: AuthRequest, res: Response) => {
       data: { isActive: !user.isActive },
     });
 
+    await notifyAdminsAndUser(
+      targetUserId,
+      'Account Status Updated',
+      `Your account has been ${updated.isActive ? 'activated' : 'deactivated'} by ${req.user!.role}.`,
+      updated.isActive ? 'SUCCESS' : 'WARNING'
+    );
+
     res.json({ success: true, isActive: updated.isActive });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error' });
@@ -330,6 +401,13 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
       data: { ownerName, shopName, mobileNumber, fullAddress, state, pinCode, aadhaarNumber },
     });
 
+    await notifyAdminsAndUser(
+      targetUserId,
+      'Profile Updated',
+      `Your profile details were updated by ${req.user!.role}.`,
+      'INFO'
+    );
+
     res.json({
       success: true,
       user: sanitizeUser(
@@ -349,10 +427,26 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
 
 export const deleteUser = async (req: AuthRequest, res: Response) => {
   try {
-    await prisma.user.update({
-      where: { id: req.params.id as string },
+    const hierarchyUsers = await fetchHierarchyUsers();
+    const targetUserId = req.params.id as string;
+
+    if (!canManageTarget(req.user!, targetUserId, hierarchyUsers)) {
+      res.status(403).json({ success: false, message: 'Forbidden: You cannot manage this user' });
+      return;
+    }
+
+    const deletedUser = await prisma.user.update({
+      where: { id: targetUserId },
       data: { isActive: false },
     });
+
+    await notifyAdminsAndUser(
+      targetUserId,
+      'Account Deactivated',
+      `${deletedUser.email} has been deactivated by ${req.user!.role}.`,
+      'WARNING'
+    );
+
     res.json({ success: true, message: 'User deactivated (soft deleted)' });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error' });
@@ -442,6 +536,13 @@ export const updateKycStatus = async (req: AuthRequest, res: Response) => {
       data: { kycStatus: status },
     });
 
+    await notifyAdminsAndUser(
+      targetUserId,
+      'KYC Status Updated',
+      `Your KYC status is now ${updated.kycStatus}.`,
+      updated.kycStatus === KycStatus.VERIFIED ? 'SUCCESS' : 'WARNING'
+    );
+
     res.json({ success: true, kycStatus: updated.kycStatus });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error' });
@@ -527,6 +628,13 @@ export const submitKycRequest = async (req: AuthRequest, res: Response) => {
 
       return created;
     });
+
+    await notifyAdminsAndUser(
+      req.user!.id,
+      'KYC Request Submitted',
+      `${req.user!.role} submitted a KYC request for review.`,
+      'INFO'
+    );
 
     res.status(201).json({
       success: true,
@@ -653,6 +761,15 @@ async function reviewKycRequest(
       });
     });
 
+    await notifyAdminsAndUser(
+      request.userId,
+      status === KycStatus.VERIFIED ? 'KYC Approved' : 'KYC Rejected',
+      status === KycStatus.VERIFIED
+        ? `Your KYC request has been approved by ${req.user!.role}.`
+        : `Your KYC request has been rejected by ${req.user!.role}.${reviewRemark ? ` Remark: ${reviewRemark}` : ''}`,
+      status === KycStatus.VERIFIED ? 'SUCCESS' : 'WARNING'
+    );
+
     res.json({
       success: true,
       message: status === KycStatus.VERIFIED ? 'KYC approved' : 'KYC rejected',
@@ -676,16 +793,24 @@ export const updateWalletHold = async (req: AuthRequest, res: Response) => {
   const { minimumHold } = req.body;
   const targetUserId = req.params.id as string;
 
-  if (req.user!.role !== 'ADMIN') {
-    res.status(403).json({ success: false, message: 'Only admins can set wallet hold' });
-    return;
-  }
-
   try {
+    const hierarchyUsers = await fetchHierarchyUsers();
+    if (!canManageTarget(req.user!, targetUserId, hierarchyUsers)) {
+      res.status(403).json({ success: false, message: 'Forbidden: You cannot manage this user' });
+      return;
+    }
+
     const updated = await prisma.wallet.update({
       where: { userId: targetUserId },
       data: { minimumHold: new Prisma.Decimal(minimumHold) },
     });
+
+    await notifyAdminsAndUser(
+      targetUserId,
+      'Wallet Hold Updated',
+      `Your minimum wallet hold has been updated to Rs ${minimumHold} by ${req.user!.role}.`,
+      'INFO'
+    );
 
     res.json({ success: true, minimumHold: updated.minimumHold });
   } catch (err) {

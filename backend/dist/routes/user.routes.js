@@ -40,21 +40,22 @@ router.post('/', (0, auth_1.authorize)('ADMIN', 'SUPER', 'DISTRIBUTOR'), upload.
     { name: 'aadhaarBack', maxCount: 1 },
     { name: 'panCard', maxCount: 1 },
 ]), user_controller_1.createUser);
-router.get('/kyc/request', user_controller_1.getMyKycRequest);
-router.post('/kyc/request', kycUpload.single('kycPhoto'), user_controller_1.submitKycRequest);
-router.get('/kyc/requests', (0, auth_1.authorize)('ADMIN'), user_controller_1.getKycRequests);
-router.patch('/kyc/requests/:id/approve', (0, auth_1.authorize)('ADMIN'), user_controller_1.approveKycRequest);
-router.patch('/kyc/requests/:id/reject', (0, auth_1.authorize)('ADMIN'), user_controller_1.rejectKycRequest);
+// router.get('/kyc/request', getMyKycRequest);
+// router.post('/kyc/request', kycUpload.single('kycPhoto'), submitKycRequest);
+// router.get('/kyc/requests', authorize('ADMIN'), getKycRequests);
+// router.patch('/kyc/requests/:id/approve', authorize('ADMIN'), approveKycRequest);
+// router.patch('/kyc/requests/:id/reject', authorize('ADMIN'), rejectKycRequest);
+router.get('/search', user_controller_1.searchUsers);
 router.get('/', user_controller_1.getUsers);
 router.get('/:id', user_controller_1.getUserById);
 router.patch('/profile', user_controller_1.updateProfile);
 router.patch('/:id', (0, auth_1.authorize)('ADMIN', 'SUPER', 'DISTRIBUTOR'), user_controller_1.updateUser);
 router.patch('/:id/toggle', (0, auth_1.authorize)('ADMIN', 'SUPER', 'DISTRIBUTOR'), user_controller_1.toggleUserStatus);
-router.post('/:id/login-as', (0, auth_1.authorize)('ADMIN'), (req, res) => {
+router.post('/:id/login-as', (0, auth_1.authorize)('ADMIN', 'SUPER', 'DISTRIBUTOR'), (req, res) => {
     req.body = { ...req.body, userId: req.params.id };
     (0, auth_controller_1.loginAs)(req, res);
 });
-router.patch('/:id/kyc', (0, auth_1.authorize)('ADMIN'), user_controller_1.updateKycStatus);
-router.patch('/:id/wallet-hold', (0, auth_1.authorize)('ADMIN'), user_controller_1.updateWalletHold);
-router.delete('/:id', (0, auth_1.authorize)('ADMIN'), user_controller_1.deleteUser);
+// router.patch('/:id/kyc', authorize('ADMIN'), updateKycStatus);
+router.patch('/:id/wallet-hold', (0, auth_1.authorize)('ADMIN', 'SUPER', 'DISTRIBUTOR'), user_controller_1.updateWalletHold);
+router.delete('/:id', (0, auth_1.authorize)('ADMIN', 'SUPER', 'DISTRIBUTOR'), user_controller_1.deleteUser);
 exports.default = router;

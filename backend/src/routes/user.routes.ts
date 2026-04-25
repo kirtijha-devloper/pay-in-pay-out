@@ -17,6 +17,7 @@ import {
   rejectKycRequest,
   submitKycRequest,
   updateWalletHold,
+  searchUsers,
 } from '../controllers/user.controller';
 import { loginAs } from '../controllers/auth.controller';
 import { authenticate, authorize } from '../middleware/auth';
@@ -61,22 +62,23 @@ router.post(
   ]),
   createUser
 );
-router.get('/kyc/request', getMyKycRequest);
-router.post('/kyc/request', kycUpload.single('kycPhoto'), submitKycRequest);
-router.get('/kyc/requests', authorize('ADMIN'), getKycRequests);
-router.patch('/kyc/requests/:id/approve', authorize('ADMIN'), approveKycRequest);
-router.patch('/kyc/requests/:id/reject', authorize('ADMIN'), rejectKycRequest);
+// router.get('/kyc/request', getMyKycRequest);
+// router.post('/kyc/request', kycUpload.single('kycPhoto'), submitKycRequest);
+// router.get('/kyc/requests', authorize('ADMIN'), getKycRequests);
+// router.patch('/kyc/requests/:id/approve', authorize('ADMIN'), approveKycRequest);
+// router.patch('/kyc/requests/:id/reject', authorize('ADMIN'), rejectKycRequest);
+router.get('/search', searchUsers);
 router.get('/', getUsers);
 router.get('/:id', getUserById);
 router.patch('/profile', updateProfile);
 router.patch('/:id', authorize('ADMIN', 'SUPER', 'DISTRIBUTOR'), updateUser);
 router.patch('/:id/toggle', authorize('ADMIN', 'SUPER', 'DISTRIBUTOR'), toggleUserStatus);
-router.post('/:id/login-as', authorize('ADMIN'), (req, res) => {
+router.post('/:id/login-as', authorize('ADMIN', 'SUPER', 'DISTRIBUTOR'), (req, res) => {
   (req as any).body = { ...(req as any).body, userId: req.params.id };
   loginAs(req, res);
 });
-router.patch('/:id/kyc', authorize('ADMIN'), updateKycStatus);
-router.patch('/:id/wallet-hold', authorize('ADMIN'), updateWalletHold);
-router.delete('/:id', authorize('ADMIN'), deleteUser);
+// router.patch('/:id/kyc', authorize('ADMIN'), updateKycStatus);
+router.patch('/:id/wallet-hold', authorize('ADMIN', 'SUPER', 'DISTRIBUTOR'), updateWalletHold);
+router.delete('/:id', authorize('ADMIN', 'SUPER', 'DISTRIBUTOR'), deleteUser);
 
 export default router;

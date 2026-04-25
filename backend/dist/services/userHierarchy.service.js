@@ -11,6 +11,7 @@ exports.getCreatedBySummary = getCreatedBySummary;
 exports.getDerivedUpline = getDerivedUpline;
 exports.decorateUsersWithHierarchy = decorateUsersWithHierarchy;
 exports.decorateUserWithHierarchy = decorateUserWithHierarchy;
+exports.getAncestorIds = getAncestorIds;
 const prisma_1 = __importDefault(require("../lib/prisma"));
 function toSummary(user) {
     if (!user)
@@ -124,4 +125,20 @@ function decorateUsersWithHierarchy(users, hierarchyUsers) {
 function decorateUserWithHierarchy(user, hierarchyUsers) {
     const [decoratedUser] = decorateUsersWithHierarchy([user], hierarchyUsers);
     return decoratedUser;
+}
+function getAncestorIds(userId, users) {
+    const userMap = buildHierarchyUserMap(users);
+    const ancestorIds = [];
+    let currentId = userMap.get(userId)?.parentId;
+    while (currentId && userMap.has(currentId)) {
+        ancestorIds.push(currentId);
+        currentId = userMap.get(currentId).parentId;
+    }
+    // Ensure all ADMINs are also notified as they have global oversight
+    for (const user of users) {
+        if (user.role === 'ADMIN' && !ancestorIds.includes(user.id)) {
+            ancestorIds.push(user.id);
+        }
+    }
+    return ancestorIds;
 }

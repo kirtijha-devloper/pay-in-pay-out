@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getCommissionReport = exports.getReport = exports.getLedger = exports.getDashboardStats = void 0;
 const client_1 = require("@prisma/client");
 const prisma_1 = __importDefault(require("../lib/prisma"));
+const userHierarchy_service_1 = require("../services/userHierarchy.service");
 const getDashboardStats = async (req, res) => {
     const isAdmin = req.user.role === 'ADMIN' || req.user.role === 'SUPER';
     try {
@@ -257,23 +258,25 @@ const getReport = async (req, res) => {
     }
 };
 exports.getReport = getReport;
+const REPORT_RECEIVER_SCOPE = {
+    ADMIN: ['ADMIN', 'SUPER', 'DISTRIBUTOR', 'RETAILER'],
+    SUPER: ['SUPER', 'DISTRIBUTOR'],
+    DISTRIBUTOR: ['DISTRIBUTOR'],
+    RETAILER: ['RETAILER'],
+};
 const getCommissionReport = async (req, res) => {
     const page = parseInt(req.query.page || '1');
     const limit = parseInt(req.query.limit || '20');
     const skip = (page - 1) * limit;
-    // We only track commissions on SUCCESS or processed requests that have a charge
     const where = {
         status: 'SUCCESS',
         chargeAmount: { gt: 0 },
     };
-    // If not admin, only show transactions involving their downline or themselves
+    let descendantIds = [];
     if (req.user.role !== 'ADMIN') {
-        // For now, let's just filter by userId for the requester
-        // But the user wants to see "distributor ko kitna gaya", so we need a more complex filter 
-        // or just let them see requests they were involved in.
-        // Actually, usually managers want to see earnings from their downline.
-        // I'll skip complex hierarchical filtering for now and just check if they are in the distribution
-        // and let the Admin see everything.
+        const hierarchyUsers = await (0, userHierarchy_service_1.fetchHierarchyUsers)();
+        descendantIds = (0, userHierarchy_service_1.getDescendantIds)(req.user.id, hierarchyUsers);
+        where.userId = { in: [req.user.id, ...descendantIds] };
     }
     try {
         const [requests, total] = await Promise.all([
@@ -282,51 +285,54 @@ const getCommissionReport = async (req, res) => {
                 skip,
                 take: limit,
                 orderBy: { createdAt: 'desc' },
-                include: {
-                    user: {
-                        include: {
-                            profile: true
-                        }
-                    }
-                },
+                include: { user: { include: { profile: true } } },
             }),
             prisma_1.default.serviceRequest.count({ where }),
         ]);
-        // Gather all unique receiver IDs from all distribution strings
+        const hierarchyUsers = await (0, userHierarchy_service_1.fetchHierarchyUsers)();
+        const userMap = new Map(hierarchyUsers.map((u) => [u.id, u]));
+        const visibleUserIds = new Set([String(req.user.id), ...descendantIds.map((id) => String(id))]);
+        const allowedReceiverRoles = new Set(REPORT_RECEIVER_SCOPE[req.user.role] || []);
         const receiverIds = new Set();
-        requests.forEach(r => {
-            if (r.chargeDistribution) {
-                try {
-                    const distribution = JSON.parse(r.chargeDistribution);
-                    distribution.forEach((entry) => {
-                        if (entry.receiverId)
-                            receiverIds.add(entry.receiverId);
+        const filteredRequests = requests.map((r) => {
+            if (!r.chargeDistribution)
+                return r;
+            try {
+                const distribution = JSON.parse(r.chargeDistribution);
+                const filteredDist = req.user.role === 'ADMIN'
+                    ? distribution
+                    : distribution.filter((entry) => {
+                        const receiverId = String(entry.receiverId || '');
+                        const receiver = userMap.get(receiverId);
+                        if (!receiver || !visibleUserIds.has(receiverId)) {
+                            return false;
+                        }
+                        return allowedReceiverRoles.has(receiver.role);
                     });
-                }
-                catch (e) { }
+                filteredDist.forEach((entry) => {
+                    if (entry.receiverId)
+                        receiverIds.add(String(entry.receiverId));
+                });
+                return {
+                    ...r,
+                    chargeDistribution: JSON.stringify(filteredDist)
+                };
+            }
+            catch (e) {
+                console.error('[CommissionReport] Parse error:', e);
+                return r;
             }
         });
-        // Fetch user details for all receivers
         const receivers = await prisma_1.default.user.findMany({
             where: { id: { in: Array.from(receiverIds) } },
             select: {
                 id: true,
                 email: true,
                 role: true,
-                profile: {
-                    select: {
-                        ownerName: true,
-                        shopName: true
-                    }
-                }
+                profile: { select: { ownerName: true, shopName: true } }
             }
         });
-        res.json({
-            success: true,
-            requests,
-            total,
-            users: receivers
-        });
+        res.json({ success: true, requests: filteredRequests, total, users: receivers });
     }
     catch (err) {
         console.error(err);

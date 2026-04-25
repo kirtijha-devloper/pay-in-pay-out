@@ -13,6 +13,7 @@ import {
   validateUserOverrideFloor,
   toDecimalAmount,
 } from '../services/commission.service';
+import { createAdminNotification, notifyAdminsAndUser } from '../services/notification.service';
 
 class InputValidationError extends Error {}
 
@@ -172,17 +173,54 @@ async function findOverlappingOverride(
 
 export const getSlabs = async (req: AuthRequest, res: Response) => {
   try {
-    const slabs = dedupeCommissionSlabs(
-      await prisma.commissionSlab.findMany({
+    const actorId = req.user!.id;
+    const actorRole = req.user!.role;
+
+    const mySlabs = await prisma.commissionSlab.findMany({
       where: {
-        setById: req.user!.id,
+        setById: actorId,
         serviceType: { in: ['PAYOUT', 'FUND_REQUEST'] },
       },
       orderBy: [{ serviceType: 'asc' }, { applyOnRole: 'asc' }, { minAmount: 'asc' }, { createdAt: 'asc' }],
-      })
-    );
+    });
 
-    res.json({ success: true, slabs });
+    const actor = await prisma.user.findUnique({
+      where: { id: actorId },
+      select: { parentId: true },
+    });
+
+    let inheritedSlabs: any[] = [];
+    if (actorRole !== 'ADMIN') {
+      const hierarchy = await fetchHierarchyUsers();
+      if (actor?.parentId) {
+        const parentId = actor.parentId;
+        inheritedSlabs = await prisma.commissionSlab.findMany({
+          where: {
+            setById: parentId,
+            serviceType: { in: ['PAYOUT', 'FUND_REQUEST'] },
+            isActive: true,
+            applyOnRole: actorRole as Role,
+          },
+          include: {
+            setBy: {
+              select: {
+                id: true,
+                email: true,
+                role: true,
+                profile: { select: { ownerName: true, shopName: true } },
+              },
+            },
+          },
+          orderBy: [{ serviceType: 'asc' }, { applyOnRole: 'asc' }, { minAmount: 'asc' }, { createdAt: 'asc' }],
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      slabs: dedupeCommissionSlabs(mySlabs),
+      inheritedSlabs: dedupeCommissionSlabs(inheritedSlabs),
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -286,6 +324,12 @@ export const upsertSlab = async (req: AuthRequest, res: Response) => {
           },
         });
 
+    await createAdminNotification(
+      id ? 'Default Charge Updated' : 'Default Charge Created',
+      `${req.user!.role} ${id ? 'updated' : 'created'} a ${serviceType} default charge for ${applyOnRole}.`,
+      'INFO'
+    );
+
     res.json({ success: true, slab });
   } catch (error) {
     if (error instanceof InputValidationError) {
@@ -311,6 +355,12 @@ export const deleteSlab = async (req: AuthRequest, res: Response) => {
       res.status(404).json({ success: false, message: 'Default rate not found' });
       return;
     }
+
+    await createAdminNotification(
+      'Default Charge Deleted',
+      `${req.user!.role} deleted a default charge slab.`,
+      'WARNING'
+    );
 
     res.json({ success: true });
   } catch (error) {
@@ -486,6 +536,13 @@ export const upsertUserOverride = async (req: AuthRequest, res: Response) => {
           },
         });
 
+    await notifyAdminsAndUser(
+      targetUserId,
+      id ? 'Special Charge Updated' : 'Special Charge Applied',
+      `${req.user!.role} ${id ? 'updated' : 'set'} a ${serviceType} special charge for your account.`,
+      'INFO'
+    );
+
     res.json({ success: true, override });
   } catch (error) {
     if (error instanceof InputValidationError) {
@@ -500,6 +557,17 @@ export const upsertUserOverride = async (req: AuthRequest, res: Response) => {
 
 export const deleteUserOverride = async (req: AuthRequest, res: Response) => {
   try {
+    const existingOverride = await prisma.userCommissionSetup.findFirst({
+      where: {
+        id: req.params.id as string,
+        setById: req.user!.id,
+      },
+      select: {
+        targetUserId: true,
+        serviceType: true,
+      },
+    });
+
     const deleted = await prisma.userCommissionSetup.deleteMany({
       where: {
         id: req.params.id as string,
@@ -510,6 +578,15 @@ export const deleteUserOverride = async (req: AuthRequest, res: Response) => {
     if (deleted.count === 0) {
       res.status(404).json({ success: false, message: 'User override not found' });
       return;
+    }
+
+    if (existingOverride) {
+      await notifyAdminsAndUser(
+        existingOverride.targetUserId,
+        'Special Charge Removed',
+        `${req.user!.role} removed a ${existingOverride.serviceType} special charge from your account.`,
+        'WARNING'
+      );
     }
 
     res.json({ success: true });

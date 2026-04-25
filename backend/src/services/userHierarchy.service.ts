@@ -182,3 +182,22 @@ export function decorateUserWithHierarchy<T extends { id: string; parentId: stri
   const [decoratedUser] = decorateUsersWithHierarchy([user], hierarchyUsers);
   return decoratedUser;
 }
+export function getAncestorIds(userId: string, users: HierarchyUser[]) {
+  const userMap = buildHierarchyUserMap(users);
+  const ancestorIds: string[] = [];
+  let currentId = userMap.get(userId)?.parentId;
+
+  while (currentId && userMap.has(currentId)) {
+    ancestorIds.push(currentId);
+    currentId = userMap.get(currentId)!.parentId;
+  }
+
+  // Ensure all ADMINs are also notified as they have global oversight
+  for (const user of users) {
+    if (user.role === 'ADMIN' && !ancestorIds.includes(user.id)) {
+      ancestorIds.push(user.id);
+    }
+  }
+
+  return ancestorIds;
+}

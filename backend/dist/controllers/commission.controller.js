@@ -7,6 +7,7 @@ exports.getEffectiveCommissionSlabs = exports.getOverrideTargets = exports.delet
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const userHierarchy_service_1 = require("../services/userHierarchy.service");
 const commission_service_1 = require("../services/commission.service");
+const notification_service_1 = require("../services/notification.service");
 class InputValidationError extends Error {
 }
 function getRangeKey(minAmount, maxAmount) {
@@ -126,14 +127,50 @@ async function findOverlappingOverride(setById, targetUserId, serviceType, minAm
 }
 const getSlabs = async (req, res) => {
     try {
-        const slabs = dedupeCommissionSlabs(await prisma_1.default.commissionSlab.findMany({
+        const actorId = req.user.id;
+        const actorRole = req.user.role;
+        const mySlabs = await prisma_1.default.commissionSlab.findMany({
             where: {
-                setById: req.user.id,
+                setById: actorId,
                 serviceType: { in: ['PAYOUT', 'FUND_REQUEST'] },
             },
             orderBy: [{ serviceType: 'asc' }, { applyOnRole: 'asc' }, { minAmount: 'asc' }, { createdAt: 'asc' }],
-        }));
-        res.json({ success: true, slabs });
+        });
+        const actor = await prisma_1.default.user.findUnique({
+            where: { id: actorId },
+            select: { parentId: true },
+        });
+        let inheritedSlabs = [];
+        if (actorRole !== 'ADMIN') {
+            const hierarchy = await (0, userHierarchy_service_1.fetchHierarchyUsers)();
+            if (actor?.parentId) {
+                const parentId = actor.parentId;
+                inheritedSlabs = await prisma_1.default.commissionSlab.findMany({
+                    where: {
+                        setById: parentId,
+                        serviceType: { in: ['PAYOUT', 'FUND_REQUEST'] },
+                        isActive: true,
+                        applyOnRole: actorRole,
+                    },
+                    include: {
+                        setBy: {
+                            select: {
+                                id: true,
+                                email: true,
+                                role: true,
+                                profile: { select: { ownerName: true, shopName: true } },
+                            },
+                        },
+                    },
+                    orderBy: [{ serviceType: 'asc' }, { applyOnRole: 'asc' }, { minAmount: 'asc' }, { createdAt: 'asc' }],
+                });
+            }
+        }
+        res.json({
+            success: true,
+            slabs: dedupeCommissionSlabs(mySlabs),
+            inheritedSlabs: dedupeCommissionSlabs(inheritedSlabs),
+        });
     }
     catch (error) {
         console.error(error);
@@ -210,6 +247,7 @@ const upsertSlab = async (req, res) => {
                     isActive,
                 },
             });
+        await (0, notification_service_1.createAdminNotification)(id ? 'Default Charge Updated' : 'Default Charge Created', `${req.user.role} ${id ? 'updated' : 'created'} a ${serviceType} default charge for ${applyOnRole}.`, 'INFO');
         res.json({ success: true, slab });
     }
     catch (error) {
@@ -234,6 +272,7 @@ const deleteSlab = async (req, res) => {
             res.status(404).json({ success: false, message: 'Default rate not found' });
             return;
         }
+        await (0, notification_service_1.createAdminNotification)('Default Charge Deleted', `${req.user.role} deleted a default charge slab.`, 'WARNING');
         res.json({ success: true });
     }
     catch (error) {
@@ -378,6 +417,7 @@ const upsertUserOverride = async (req, res) => {
                     },
                 },
             });
+        await (0, notification_service_1.notifyAdminsAndUser)(targetUserId, id ? 'Special Charge Updated' : 'Special Charge Applied', `${req.user.role} ${id ? 'updated' : 'set'} a ${serviceType} special charge for your account.`, 'INFO');
         res.json({ success: true, override });
     }
     catch (error) {
@@ -392,6 +432,16 @@ const upsertUserOverride = async (req, res) => {
 exports.upsertUserOverride = upsertUserOverride;
 const deleteUserOverride = async (req, res) => {
     try {
+        const existingOverride = await prisma_1.default.userCommissionSetup.findFirst({
+            where: {
+                id: req.params.id,
+                setById: req.user.id,
+            },
+            select: {
+                targetUserId: true,
+                serviceType: true,
+            },
+        });
         const deleted = await prisma_1.default.userCommissionSetup.deleteMany({
             where: {
                 id: req.params.id,
@@ -401,6 +451,9 @@ const deleteUserOverride = async (req, res) => {
         if (deleted.count === 0) {
             res.status(404).json({ success: false, message: 'User override not found' });
             return;
+        }
+        if (existingOverride) {
+            await (0, notification_service_1.notifyAdminsAndUser)(existingOverride.targetUserId, 'Special Charge Removed', `${req.user.role} removed a ${existingOverride.serviceType} special charge from your account.`, 'WARNING');
         }
         res.json({ success: true });
     }

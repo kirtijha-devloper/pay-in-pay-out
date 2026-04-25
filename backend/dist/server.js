@@ -13,6 +13,7 @@ const user_routes_1 = __importDefault(require("./routes/user.routes"));
 const service_routes_1 = __importDefault(require("./routes/service.routes"));
 const commission_routes_1 = __importDefault(require("./routes/commission.routes"));
 const report_routes_1 = __importDefault(require("./routes/report.routes"));
+const notification_routes_1 = __importDefault(require("./routes/notification.routes"));
 const branchxPayoutSync_1 = require("./jobs/branchxPayoutSync");
 const uploads_1 = require("./lib/uploads");
 const runtimeSchema_service_1 = require("./services/runtimeSchema.service");
@@ -64,6 +65,7 @@ app.use('/api/users', user_routes_1.default);
 app.use('/api/services', service_routes_1.default);
 app.use('/api/commissions', commission_routes_1.default);
 app.use('/api/reports', report_routes_1.default);
+app.use('/api/notifications', notification_routes_1.default);
 app.use('/api/payment/v2/payout/callback', branchx_routes_1.default);
 // API Health Check
 app.get('/api/health', (req, res) => {

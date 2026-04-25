@@ -261,61 +261,67 @@ export default function BankVerify() {
             <h2 className="font-semibold">Verify New Account</h2>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4 max-w-4xl">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500 uppercase">Beneficiary Bank Name</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. State Bank of India"
-                value={formData.bankName}
-                onChange={(event) => setFormData({ ...formData, bankName: event.target.value })}
-              />
+          <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="form-group">
+                <label className="form-label">Beneficiary Bank Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. State Bank of India"
+                  value={formData.bankName}
+                  onChange={(event) => setFormData({ ...formData, bankName: event.target.value })}
+                  className="form-input"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Account Holder Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Display name on passbook"
+                  value={formData.accountName}
+                  onChange={(event) => setFormData({ ...formData, accountName: event.target.value })}
+                  className="form-input"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Account Number</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Enter full account number"
+                  value={formData.accountNumber}
+                  onChange={(event) => setFormData({ ...formData, accountNumber: event.target.value })}
+                  className="form-input"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">IFSC Code</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. SBIN0001234"
+                  value={formData.ifscCode}
+                  onChange={(event) => setFormData({ ...formData, ifscCode: event.target.value })}
+                  className="form-input"
+                />
+              </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500 uppercase">Account Holder Name</label>
-              <input
-                type="text"
-                required
-                placeholder="Display name on passbook"
-                value={formData.accountName}
-                onChange={(event) => setFormData({ ...formData, accountName: event.target.value })}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500 uppercase">Account Number</label>
-              <input
-                type="text"
-                required
-                placeholder="Enter full account number"
-                value={formData.accountNumber}
-                onChange={(event) => setFormData({ ...formData, accountNumber: event.target.value })}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500 uppercase">IFSC Code</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. SBIN0001234"
-                value={formData.ifscCode}
-                onChange={(event) => setFormData({ ...formData, ifscCode: event.target.value })}
-              />
-            </div>
-
-            <div className="p-3 bg-gray-50 rounded-lg flex gap-3 items-start mt-4">
-              <Info size={16} className="text-primary mt-0.5" />
-              <p className="text-xs text-gray-600">
+            <div className="p-4 bg-primary-light/30 border border-primary-light rounded-xl flex gap-3 items-start">
+              <Info size={18} className="text-primary mt-0.5 shrink-0" />
+              <p className="text-xs text-primary/80 leading-relaxed">
                 A flat verification fee will be deducted from your wallet only when a fresh verification is performed.
                 Previously verified beneficiaries are reused at no extra charge.
               </p>
             </div>
 
-            <button type="submit" className="btn btn-primary w-full py-3 mt-4" disabled={loading}>
-              {loading ? 'Processing...' : 'Verify Now'}
+            <button type="submit" className="btn-premium btn-premium-primary w-full py-4 text-base" disabled={loading}>
+              {loading ? <Loader2 className="animate-spin" size={20} /> : 'Verify Account Now'}
             </button>
           </form>
 

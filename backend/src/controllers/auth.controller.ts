@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma';
+import { canManageTarget, fetchHierarchyUsers } from '../services/userHierarchy.service';
 
 function buildPublicUserPayload(user: any) {
   return {
@@ -99,14 +100,13 @@ export const changePassword = async (req: any, res: Response) => {
 
 export const loginAs = async (req: any, res: Response) => {
   const { userId } = req.body;
-  
-  // Only admin can login as another user
-  if (req.user.role !== 'ADMIN') {
-    res.status(403).json({ success: false, message: 'Only admins can login as other users' });
-    return;
-  }
 
   try {
+    const hierarchyUsers = await fetchHierarchyUsers();
+    if (!canManageTarget(req.user, userId, hierarchyUsers)) {
+      res.status(403).json({ success: false, message: 'Forbidden: You cannot login as this user' });
+      return;
+    }
     const targetUser = await prisma.user.findUnique({
       where: { id: userId },
       include: { profile: true, wallet: true },

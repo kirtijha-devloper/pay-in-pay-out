@@ -26,7 +26,7 @@ export default function CommissionReport() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const { data: res } = await api.get(`/reports/commissions?page=${page}&limit=10`);
+      const { data: res } = await api.get(`/reports/commissions?page=${page}&limit=10&t=${Date.now()}`);
       if (res.success) {
         setData(res);
         setTotalPages(Math.ceil(res.total / 10) || 1);
@@ -39,6 +39,8 @@ export default function CommissionReport() {
 
   useEffect(() => {
     fetchData();
+    const interval = setInterval(fetchData, 10000); // 10s auto-refresh
+    return () => clearInterval(interval);
   }, [page]);
 
   const findUser = (id) => data.users.find(u => u.id === id);
@@ -79,7 +81,7 @@ export default function CommissionReport() {
 
       return (
         <div className="flex flex-wrap gap-x-3 gap-y-2 items-center">
-          {dist.map((entry, idx) => {
+          {dist.filter(entry => findUser(entry.receiverId)).map((entry, idx) => {
             const receiver = findUser(entry.receiverId);
             return (
               <React.Fragment key={idx}>

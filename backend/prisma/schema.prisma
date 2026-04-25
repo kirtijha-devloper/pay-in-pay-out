@@ -38,6 +38,7 @@ model User {
   payoutBeneficiaries        PayoutBeneficiary[]
   parent                     User?                 @relation("UserHierarchy", fields: [parentId], references: [id])
   children                   User[]                @relation("UserHierarchy")
+  notifications              Notification[]
 
   @@map("users")
 }
@@ -66,8 +67,8 @@ model Wallet {
   id          String   @id @default(uuid())
   userId      String   @unique
   balance     Decimal  @default(0.00) @db.Decimal(15, 2)
-  minimumHold Decimal  @default(0.00) @db.Decimal(15, 2)
   updatedAt   DateTime @updatedAt
+  minimumHold Decimal  @default(0.00) @db.Decimal(15, 2)
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -274,4 +275,18 @@ enum KycStatus {
   PENDING
   VERIFIED
   REJECTED
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("INFO")
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@map("notifications")
 }

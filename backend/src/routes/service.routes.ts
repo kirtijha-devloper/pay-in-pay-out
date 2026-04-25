@@ -55,8 +55,8 @@ router.post('/bank-accounts', authorize('ADMIN'), upload.single('qrCode'), upser
 router.put('/bank-accounts', authorize('ADMIN'), upload.single('qrCode'), upsertCompanyBankAccount);
 router.patch('/bank-accounts/:id/toggle', authorize('ADMIN'), toggleCompanyBankAccount);
 router.post('/fund-request', authorize('SUPER', 'DISTRIBUTOR', 'RETAILER'), upload.single('receipt'), submitFundRequest);
-router.patch('/fund-request/:id/approve', authorize('ADMIN', 'SUPER'), approveFundRequest);
-router.patch('/fund-request/:id/reject', authorize('ADMIN', 'SUPER'), rejectFundRequest);
+router.patch('/fund-request/:id/approve', authorize('ADMIN', 'SUPER', 'DISTRIBUTOR'), approveFundRequest);
+router.patch('/fund-request/:id/reject', authorize('ADMIN', 'SUPER', 'DISTRIBUTOR'), rejectFundRequest);
 router.get('/bank-verify/fee', getBankVerificationFee);
 router.patch('/bank-verify/fee', authorize('ADMIN'), updateBankVerificationFee);
 router.get('/bank-verify/beneficiaries', getVerifiedBankBeneficiaries);

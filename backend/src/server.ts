@@ -8,6 +8,7 @@ import userRoutes from './routes/user.routes';
 import serviceRoutes from './routes/service.routes';
 import commissionRoutes from './routes/commission.routes';
 import reportRoutes from './routes/report.routes';
+import notificationRoutes from './routes/notification.routes';
 import { startBranchxPayoutSyncJob } from './jobs/branchxPayoutSync';
 import { getUploadRoot } from './lib/uploads';
 import { ensureRuntimeSchema } from './services/runtimeSchema.service';
@@ -69,6 +70,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/commissions', commissionRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/notifications', notificationRoutes);
+
 app.use('/api/payment/v2/payout/callback', branchxRoutes);
 
 // API Health Check

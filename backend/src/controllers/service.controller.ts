@@ -10,6 +10,8 @@ import {
   verifyBankBeneficiary,
 } from '../services/bankVerification.service';
 import { getPayoutQuote as getPayoutQuoteService, submitPayoutRequest } from '../services/payout.service';
+import { createAdminNotification, notifyAdminsAndUser } from '../services/notification.service';
+import { fetchHierarchyUsers, getDescendantIds, canManageTarget } from '../services/userHierarchy.service';
 
 function toNumberAmount(value: Prisma.Decimal | string | number | null | undefined) {
   return Number(value || 0);
@@ -171,14 +173,14 @@ export const submitFundRequest = async (req: AuthRequest, res: Response) => {
   const receiptFile = (req as any).file as Express.Multer.File | undefined;
 
   try {
-    const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
-    if (!user || user.kycStatus !== 'VERIFIED') {
-      res.status(403).json({
-        success: false,
-        message: 'KYC not verified. Please submit your KYC request from the KYC Verification page first.',
-      });
-      return;
-    }
+    // const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+    // if (!user || user.kycStatus !== 'VERIFIED') {
+    //   res.status(403).json({
+    //     success: false,
+    //     message: 'KYC not verified. Please submit your KYC request from the KYC Verification page first.',
+    //   });
+    //   return;
+    // }
 
     if (!bankAccountId) {
       res.status(400).json({ success: false, message: 'Please select a company bank account' });
@@ -210,6 +212,13 @@ export const submitFundRequest = async (req: AuthRequest, res: Response) => {
         status: 'PENDING',
       },
     });
+    await notifyAdminsAndUser(
+      req.user!.id,
+      'New Fund Request',
+      `Fund request of Rs ${amount} was submitted by ${req.user!.role}.`,
+      'INFO'
+    );
+
     res.status(201).json({ success: true, request });
   } catch (err) {
     console.error(err);
@@ -228,6 +237,13 @@ export const approveFundRequest = async (req: AuthRequest, res: Response) => {
     });
     if (!request || request.status !== 'PENDING') {
       res.status(400).json({ success: false, message: 'Invalid request' });
+      return;
+    }
+
+    // Hierarchy Check
+    const hierarchyUsers = await fetchHierarchyUsers();
+    if (!canManageTarget(req.user!, request.userId, hierarchyUsers)) {
+      res.status(403).json({ success: false, message: 'Forbidden: You cannot manage this user hierarchy' });
       return;
     }
 
@@ -298,6 +314,13 @@ export const approveFundRequest = async (req: AuthRequest, res: Response) => {
       await distributeFundRequestCharge(tx, request.userId, shares, id);
     });
 
+    await notifyAdminsAndUser(
+      request.userId,
+      'Fund Request Approved',
+      `Fund request for Rs ${request.amount} has been approved. Rs ${creditedAmount} has been credited to the wallet.`,
+      'SUCCESS'
+    );
+
     res.json({
       success: true,
       message: 'Fund request approved and wallet credited',
@@ -326,6 +349,24 @@ export const rejectFundRequest = async (req: AuthRequest, res: Response) => {
       res.status(400).json({ success: false, message: 'Request already processed or not pending' });
       return;
     }
+
+    const request = await prisma.serviceRequest.findUnique({ where: { id } });
+    if (request) {
+      // Hierarchy Check
+      const hierarchyUsers = await fetchHierarchyUsers();
+      if (!canManageTarget(req.user!, request.userId, hierarchyUsers)) {
+        res.status(403).json({ success: false, message: 'Forbidden: You cannot manage this user hierarchy' });
+        return;
+      }
+
+      await notifyAdminsAndUser(
+        request.userId,
+        'Fund Request Rejected',
+        `Fund request for Rs ${request.amount} has been rejected by ${req.user!.role}.`,
+        'ERROR'
+      );
+    }
+
     res.json({ success: true, message: 'Fund request rejected' });
   } catch {
     res.status(500).json({ success: false, message: 'Server error' });
@@ -357,6 +398,11 @@ export const updateBankVerificationFee = async (req: AuthRequest, res: Response)
     }
 
     const fee = await saveBankVerificationFee(normalized);
+    await createAdminNotification(
+      'Bank Verification Fee Updated',
+      `${req.user!.role} updated the bank verification fee to Rs ${normalized}.`,
+      'INFO'
+    );
     res.json({ success: true, fee });
   } catch (err) {
     console.error(err);
@@ -454,6 +500,13 @@ export const verifyBank = async (req: AuthRequest, res: Response) => {
     }
 
     res.json({ success: true, message: 'Bank verified successfully', charge });
+
+    await notifyAdminsAndUser(
+      userId,
+      'Bank Verification Successful',
+      `Bank account ${accountNumber} has been successfully verified.`,
+      'SUCCESS'
+    );
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -478,6 +531,16 @@ export const getPayoutQuote = async (req: AuthRequest, res: Response) => {
 export const submitPayout = async (req: AuthRequest, res: Response) => {
   try {
     const result = await submitPayoutRequest(req.user!.id, req.body);
+    
+    if (result.success) {
+      await notifyAdminsAndUser(
+        req.user!.id,
+        'Payout Request Submitted',
+        `Payout request for Rs ${req.body.amount} has been submitted by ${req.user!.role}.`,
+        'INFO'
+      );
+    }
+
     res.status(result.success ? 200 : 400).json(result);
   } catch (err) {
     const statusCode = (err as any)?.statusCode || 500;
@@ -506,7 +569,17 @@ export const getServiceRequests = async (req: AuthRequest, res: Response) => {
   if (serviceType) where.serviceType = serviceType;
   if (status) where.status = status;
   if (filterUserId) where.userId = filterUserId;
-  if (req.user!.role !== 'ADMIN') where.userId = req.user!.id;
+  if (req.user!.role !== 'ADMIN') {
+    const hierarchyUsers = await fetchHierarchyUsers();
+    const descendantIds = getDescendantIds(req.user!.id, hierarchyUsers);
+    where.userId = { in: [req.user!.id, ...descendantIds] };
+    
+    // If specific filterUserId requested, ensure it's in descendantIds
+    if (filterUserId && !descendantIds.includes(filterUserId) && filterUserId !== req.user!.id) {
+       res.status(403).json({ success: false, message: 'Forbidden' });
+       return;
+    }
+  }
   if (from || to) {
     where.createdAt = {};
     if (from) where.createdAt.gte = new Date(from as string);

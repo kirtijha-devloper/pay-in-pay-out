@@ -3,8 +3,9 @@ import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { 
   FileText, Download, Filter, ArrowDownLeft, ArrowUpRight, 
-  Clock, History, List, Users, CreditCard 
+  Clock, History, List, Users, CreditCard, RefreshCw 
 } from 'lucide-react';
+import UserSearch from '../components/common/UserSearch';
 
 export default function Reports() {
   const { user } = useAuth();
@@ -50,7 +51,7 @@ export default function Reports() {
 
   useEffect(() => {
     fetchData();
-  }, [activeTab, filters.from, filters.to, filters.status]);
+  }, [activeTab, filters.from, filters.to, filters.status, filters.userId]);
 
   const renderTable = () => {
     if (activeTab === 'ledger') {
@@ -162,17 +163,19 @@ export default function Reports() {
 
   return (
     <div className="flex-col gap-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-8 animate-slide-up">
         <div>
-          <h1 className="text-2xl font-bold">System Reports</h1>
-          <p className="text-muted text-sm mt-1">Official logs and financial statements (Section 10 Compliant).</p>
+          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">System Reports</h1>
+          <p className="text-gray-500 text-sm mt-1">Comprehensive financial logs and transaction histories.</p>
         </div>
-        <div className="flex gap-2">
-          <button className="btn btn-outline" onClick={downloadCSV}>
+        <div className="flex gap-3">
+          <button className="btn-premium btn-premium-secondary" onClick={downloadCSV}>
+            <FileText size={18} />
             Export CSV
           </button>
-          <button className="btn btn-outline" onClick={() => window.print()}>
-            <Download size={18} /> Export PDF
+          <button className="btn-premium btn-premium-primary" onClick={() => window.print()}>
+            <Download size={18} />
+            Export PDF
           </button>
         </div>
       </div>
@@ -198,21 +201,37 @@ export default function Reports() {
         {/* Report Content */}
         <div className="lg:col-span-3 card">
           {/* Filters */}
-          <div className="p-4 border-b border-gray-100 flex flex-wrap gap-4 items-center bg-gray-50/50">
-            <div className="flex items-center gap-2">
-              <Filter size={16} className="text-gray-400" />
-              <input 
-                type="date" className="py-1 px-3 text-xs" 
-                value={filters.from} onChange={e => setFilters({...filters, from: e.target.value})}
-              />
-              <span className="text-gray-400 text-xs">to</span>
-              <input 
-                type="date" className="py-1 px-3 text-xs" 
-                value={filters.to} onChange={e => setFilters({...filters, to: e.target.value})}
+          <div className="p-4 border-b border-gray-100 flex flex-wrap gap-4 items-center bg-white">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-xl border border-gray-100">
+                <Filter size={16} className="text-gray-400" />
+                <input 
+                  type="date" className="bg-transparent border-none text-xs focus:ring-0 p-0" 
+                  value={filters.from} onChange={e => setFilters({...filters, from: e.target.value})}
+                />
+                <span className="text-gray-300 text-[10px] font-bold uppercase">To</span>
+                <input 
+                  type="date" className="bg-transparent border-none text-xs focus:ring-0 p-0" 
+                  value={filters.to} onChange={e => setFilters({...filters, to: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 max-w-xs">
+              <UserSearch 
+                onSelect={(u) => setFilters({...filters, userId: u?.id || ''})}
+                placeholder="Filter by user..."
+                className="h-9"
               />
             </div>
-            <button onClick={fetchData} className="btn btn-primary py-1 px-4 text-xs ml-auto">
-              See Report
+
+            <button 
+              onClick={fetchData} 
+              disabled={loading}
+              className="btn-premium btn-premium-secondary h-9 px-4 ml-auto"
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              <span className="ml-2">Refresh</span>
             </button>
           </div>
 

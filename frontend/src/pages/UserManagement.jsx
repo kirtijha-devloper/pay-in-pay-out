@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../lib/api';
+import UserSearch from '../components/common/UserSearch';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Filter, RefreshCw, X, Edit2, Trash2, LogIn, MoreVertical, Settings, Banknote, CheckCircle2 } from 'lucide-react';
 
@@ -85,12 +86,12 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
   const [error, setError] = useState('');
   const [formData, setFormData] = useState(EMPTY_CREATE_FORM);
   const [files, setFiles] = useState(EMPTY_FILES);
+  const [potentialParents, setPotentialParents] = useState([]);
 
   const availableRoles = getAvailableRoles(user?.role);
 
   useEffect(() => {
     if (!isOpen) return;
-
     setError('');
     setLoading(false);
     setFiles(EMPTY_FILES);
@@ -102,11 +103,9 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
     fetchPotentialParents();
   }, [isOpen, user?.id, user?.role]);
 
-  const [potentialParents, setPotentialParents] = useState([]);
-
   const fetchPotentialParents = async () => {
     try {
-      const { data } = await api.get('/users?limit=100'); // Fetch a good number of potential parents
+      const { data } = await api.get('/users?limit=200');
       if (data.success) {
         setPotentialParents(data.users);
       }
@@ -116,21 +115,14 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
   };
 
   const getEligibleParents = () => {
-    // Logic: A user can only be a parent of a lower role
-    // Role Hierarchy: ADMIN > SUPER > DISTRIBUTOR > RETAILER
     const hierarchy = ['ADMIN', 'SUPER', 'DISTRIBUTOR', 'RETAILER'];
     const currentRoleIdx = hierarchy.indexOf(formData.role);
-    
-    return potentialParents.filter(p => {
-      const parentRoleIdx = hierarchy.indexOf(p.role);
-      return parentRoleIdx < currentRoleIdx;
-    });
+    return potentialParents.filter(p => hierarchy.indexOf(p.role) < currentRoleIdx);
   };
 
   if (!isOpen) return null;
 
   const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
-  const handleFileChange = (e) => setFiles({ ...files, [e.target.name]: e.target.files?.[0] || null });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -139,15 +131,10 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
 
     const data = new FormData();
     Object.entries(formData).forEach(([key, value]) => data.append(key, value));
-    if (files.aadhaarFront) data.append('aadhaarFront', files.aadhaarFront);
-    if (files.aadhaarBack) data.append('aadhaarBack', files.aadhaarBack);
-    if (files.panCard) data.append('panCard', files.panCard);
+    // KYC files omitted as per user request to hide KYC for now
 
     try {
-      const res = await api.post('/users', data, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-
+      const res = await api.post('/users', data);
       if (res.data.success) {
         onUserCreated();
         onClose();
@@ -156,131 +143,166 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Server error occurred');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col animate-fade-in shadow-2xl">
-        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white">
-          <h2 className="text-xl font-bold text-gray-900">Create New User</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-slide-up border border-gray-100">
+        <div className="p-6 border-b border-gray-100 flex justify-between items-start">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Create New User</h2>
+            <p className="text-sm text-gray-500 mt-1">Register a new partner in your network.</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400">
             <X size={20} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-8">
           <form id="create-user-form" onSubmit={handleSubmit} className="space-y-8">
-          {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>}
+            {error && (
+              <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3 text-red-700">
+                <Plus size={20} className="rotate-45" />
+                <span className="text-sm font-medium">{error}</span>
+              </div>
+            )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-4">
-              <h3 className="font-medium text-gray-900 border-b pb-2">Account Details</h3>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700 uppercase">Role</label>
-                <select name="role" required value={formData.role} onChange={handleInputChange} className="w-full">
-                  {availableRoles.map((role) => (
-                    <option key={role} value={role}>
-                      {ROLE_LABELS[role] || role}
-                    </option>
-                  ))}
-                </select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 border-b border-gray-50 pb-3">
+                  <h3 className="font-bold text-gray-900 uppercase tracking-wider text-xs">Account Settings</h3>
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">ASSIGNED ROLE</label>
+                  <select 
+                    name="role" value={formData.role} onChange={handleInputChange} 
+                    className="form-input form-select" required
+                  >
+                    {availableRoles.map(r => <option key={r} value={r}>{ROLE_LABELS[r] || r}</option>)}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">EMAIL ADDRESS</label>
+                  <input 
+                    type="email" name="email" required 
+                    value={formData.email} onChange={handleInputChange} 
+                    className="form-input" placeholder="user@example.com"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">PASSWORD</label>
+                  <input 
+                    type="password" name="password" required minLength="6"
+                    value={formData.password} onChange={handleInputChange} 
+                    className="form-input" placeholder="Min 6 characters"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">PARENT / UPLINE</label>
+                  <select 
+                    name="parentId" value={formData.parentId} onChange={handleInputChange} 
+                    className="form-input form-select"
+                  >
+                    <option value={user?.id}>Myself ({user?.email})</option>
+                    {getEligibleParents().map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.profile?.ownerName || p.email} ({ROLE_LABELS[p.role]})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700 uppercase">Email</label>
-                <input type="email" name="email" required value={formData.email} onChange={handleInputChange} className="w-full" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700 uppercase">Parent/Upline</label>
-                <select name="parentId" value={formData.parentId} onChange={handleInputChange} className="w-full">
-                  <option value={user?.id}>Myself ({user?.email})</option>
-                  {getEligibleParents().map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.profile?.ownerName || p.email} ({ROLE_LABELS[p.role]})
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[10px] text-gray-500 italic">Select who this user should report to.</p>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700 uppercase">Password</label>
-                <input type="password" name="password" required minLength="6" value={formData.password} onChange={handleInputChange} className="w-full" />
+
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 border-b border-gray-50 pb-3">
+                  <h3 className="font-bold text-gray-900 uppercase tracking-wider text-xs">Business Profile</h3>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">OWNER FULL NAME</label>
+                  <input 
+                    type="text" name="ownerName" required 
+                    value={formData.ownerName} onChange={handleInputChange} 
+                    className="form-input" placeholder="e.g. John Doe"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">SHOP / BUSINESS NAME</label>
+                  <input 
+                    type="text" name="shopName" required 
+                    value={formData.shopName} onChange={handleInputChange} 
+                    className="form-input" placeholder="e.g. Abhee Enterprises"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">MOBILE NUMBER</label>
+                  <input 
+                    type="tel" name="mobileNumber" required minLength="10" maxLength="10" 
+                    value={formData.mobileNumber} onChange={handleInputChange} 
+                    className="form-input" placeholder="10-digit number"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <h3 className="font-medium text-gray-900 border-b pb-2">Profile Details</h3>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700 uppercase">Owner Name</label>
-                <input type="text" name="ownerName" value={formData.ownerName} onChange={handleInputChange} className="w-full" />
+            <div className="space-y-6 pt-4">
+              <div className="flex items-center gap-3 border-b border-gray-50 pb-3">
+                <h3 className="font-bold text-gray-900 uppercase tracking-wider text-xs">Business Address</h3>
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700 uppercase">Shop/Business Name</label>
-                <input type="text" name="shopName" value={formData.shopName} onChange={handleInputChange} className="w-full" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700 uppercase">Mobile Number</label>
-                <input type="tel" name="mobileNumber" minLength="10" maxLength="10" value={formData.mobileNumber} onChange={handleInputChange} className="w-full" />
-              </div>
-            </div>
-
-            <div className="space-y-4 md:col-span-2">
-              <h3 className="font-medium text-gray-900 border-b pb-2">Address Info</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700 uppercase">Full Address</label>
-                  <input type="text" name="fullAddress" value={formData.fullAddress} onChange={handleInputChange} className="w-full" />
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="form-group md:col-span-1">
+                  <label className="form-label">FULL ADDRESS</label>
+                  <input 
+                    type="text" name="fullAddress" required 
+                    value={formData.fullAddress} onChange={handleInputChange} 
+                    className="form-input" placeholder="House/Shop No, Area..."
+                  />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700 uppercase">State</label>
-                  <input type="text" name="state" value={formData.state} onChange={handleInputChange} className="w-full" />
+                <div className="form-group">
+                  <label className="form-label">STATE</label>
+                  <input 
+                    type="text" name="state" required 
+                    value={formData.state} onChange={handleInputChange} 
+                    className="form-input" placeholder="e.g. Delhi"
+                  />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700 uppercase">PIN Code</label>
-                  <input type="text" name="pinCode" value={formData.pinCode} onChange={handleInputChange} className="w-full" />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4 md:col-span-2">
-              <h3 className="font-medium text-gray-900 border-b pb-2">KYC Documents</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700 uppercase">Aadhaar Number</label>
-                  <input type="text" name="aadhaarNumber" value={formData.aadhaarNumber} onChange={handleInputChange} className="w-full" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700 uppercase">Aadhaar Front Image</label>
-                  <input type="file" name="aadhaarFront" accept="image/*" onChange={handleFileChange} className="w-full p-1" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700 uppercase">Aadhaar Back Image</label>
-                  <input type="file" name="aadhaarBack" accept="image/*" onChange={handleFileChange} className="w-full p-1" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700 uppercase">PAN Card Image</label>
-                  <input type="file" name="panCard" accept="image/*" onChange={handleFileChange} className="w-full p-1" />
+                <div className="form-group">
+                  <label className="form-label">PIN CODE</label>
+                  <input 
+                    type="text" name="pinCode" required 
+                    value={formData.pinCode} onChange={handleInputChange} 
+                    className="form-input" placeholder="6-digit PIN"
+                  />
                 </div>
               </div>
             </div>
-          </div>
-
           </form>
         </div>
 
-        <div className="p-5 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50">
-          <button type="button" onClick={onClose} className="btn btn-outline" disabled={loading}>
+        <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50">
+          <button 
+            type="button" onClick={onClose} 
+            className="btn-premium btn-premium-secondary" 
+            disabled={loading}
+          >
             Cancel
           </button>
           <button 
-            type="submit" 
-            form="create-user-form"
-            className="btn btn-primary min-w-[120px]" 
-            disabled={loading || availableRoles.length === 0}
+            type="submit" form="create-user-form" 
+            className="btn-premium btn-premium-primary min-w-[140px]" 
+            disabled={loading}
           >
-            {loading ? 'Creating...' : 'Create User'}
+            {loading ? <RefreshCw className="animate-spin" size={18} /> : 'Create Account'}
           </button>
         </div>
       </div>
@@ -291,10 +313,10 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
 const EditUserModal = ({ isOpen, onClose, user, onUserUpdated }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [formData, setFormData] = useState(buildEditForm(user));
+  const [formData, setFormData] = useState({});
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !user) return;
     setError('');
     setLoading(false);
     setFormData(buildEditForm(user));
@@ -319,97 +341,143 @@ const EditUserModal = ({ isOpen, onClose, user, onUserUpdated }) => {
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Server error occurred');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col animate-fade-in shadow-2xl">
-        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white">
-          <h2 className="text-xl font-bold text-gray-900">Edit User</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-slide-up border border-gray-100">
+        <div className="p-6 border-b border-gray-100 flex justify-between items-start">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Edit User Profile</h2>
+            <p className="text-sm text-gray-500 mt-1">Update profile information and business details.</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400">
             <X size={20} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-8">
           <form id="edit-user-form" onSubmit={handleSubmit} className="space-y-8">
-          {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>}
+            {error && (
+              <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3 text-red-700">
+                <Edit2 size={20} />
+                <span className="text-sm font-medium">{error}</span>
+              </div>
+            )}
 
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <div className="text-xs uppercase text-gray-500 mb-1">Added By</div>
-              <div className="font-medium text-gray-900">{formatSummaryPrimary(user.createdBy)}</div>
-              <div className="text-xs text-gray-500">{formatSummarySecondary(user.createdBy) || '-'}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase text-gray-500 mb-1">Hierarchy</div>
-              <HierarchyStack user={user} />
-            </div>
-          </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 border-b border-gray-50 pb-3">
+                  <h3 className="font-bold text-gray-900 uppercase tracking-wider text-xs">Account Information</h3>
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">EMAIL ADDRESS</label>
+                  <input 
+                    type="email" name="email" required 
+                    value={formData.email || ''} onChange={handleInputChange} 
+                    className="form-input bg-gray-50 cursor-not-allowed" 
+                    disabled
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">Username cannot be changed.</p>
+                </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-4">
-              <h3 className="font-medium text-gray-900 border-b pb-2">Account Details</h3>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700 uppercase">Email</label>
-                <input type="email" name="email" required value={formData.email} onChange={handleInputChange} className="w-full" disabled />
+                <div className="form-group">
+                  <label className="form-label">CURRENT ROLE</label>
+                  <input 
+                    type="text" value={ROLE_LABELS[user.role] || user.role} 
+                    className="form-input bg-gray-50 cursor-not-allowed" 
+                    disabled 
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 border-b border-gray-50 pb-3">
+                  <h3 className="font-bold text-gray-900 uppercase tracking-wider text-xs">Profile Details</h3>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">OWNER FULL NAME</label>
+                  <input 
+                    type="text" name="ownerName" required 
+                    value={formData.ownerName || ''} onChange={handleInputChange} 
+                    className="form-input" placeholder="e.g. John Doe"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">SHOP / BUSINESS NAME</label>
+                  <input 
+                    type="text" name="shopName" required 
+                    value={formData.shopName || ''} onChange={handleInputChange} 
+                    className="form-input" placeholder="e.g. Abhee Enterprises"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">MOBILE NUMBER</label>
+                  <input 
+                    type="tel" name="mobileNumber" required minLength="10" maxLength="10" 
+                    value={formData.mobileNumber || ''} onChange={handleInputChange} 
+                    className="form-input" placeholder="10-digit number"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <h3 className="font-medium text-gray-900 border-b pb-2">Profile Details</h3>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700 uppercase">Owner Name</label>
-                <input type="text" name="ownerName" required value={formData.ownerName} onChange={handleInputChange} className="w-full" />
+            <div className="space-y-6 pt-4">
+              <div className="flex items-center gap-3 border-b border-gray-50 pb-3">
+                <h3 className="font-bold text-gray-900 uppercase tracking-wider text-xs">Business Address</h3>
               </div>
-            </div>
-
-            <div className="space-y-1 md:col-span-2">
-              <label className="text-xs font-medium text-gray-700 uppercase">Shop/Business Name</label>
-              <input type="text" name="shopName" required value={formData.shopName} onChange={handleInputChange} className="w-full" />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-700 uppercase">Mobile Number</label>
-              <input type="tel" name="mobileNumber" required minLength="10" maxLength="10" value={formData.mobileNumber} onChange={handleInputChange} className="w-full" />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-700 uppercase">Aadhaar Number</label>
-              <input type="text" name="aadhaarNumber" required value={formData.aadhaarNumber} onChange={handleInputChange} className="w-full" />
-            </div>
-
-            <div className="space-y-4 md:col-span-2">
-              <h3 className="font-medium text-gray-900 border-b pb-2">Address Info</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700 uppercase">Full Address</label>
-                  <input type="text" name="fullAddress" required value={formData.fullAddress} onChange={handleInputChange} className="w-full" />
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="form-group md:col-span-1">
+                  <label className="form-label">FULL ADDRESS</label>
+                  <input 
+                    type="text" name="fullAddress" required 
+                    value={formData.fullAddress || ''} onChange={handleInputChange} 
+                    className="form-input" placeholder="House/Shop No, Area..."
+                  />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700 uppercase">State</label>
-                  <input type="text" name="state" required value={formData.state} onChange={handleInputChange} className="w-full" />
+                <div className="form-group">
+                  <label className="form-label">STATE</label>
+                  <input 
+                    type="text" name="state" required 
+                    value={formData.state || ''} onChange={handleInputChange} 
+                    className="form-input" placeholder="e.g. Delhi"
+                  />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700 uppercase">PIN Code</label>
-                  <input type="text" name="pinCode" required value={formData.pinCode} onChange={handleInputChange} className="w-full" />
+                <div className="form-group">
+                  <label className="form-label">PIN CODE</label>
+                  <input 
+                    type="text" name="pinCode" required 
+                    value={formData.pinCode || ''} onChange={handleInputChange} 
+                    className="form-input" placeholder="6-digit PIN"
+                  />
                 </div>
               </div>
             </div>
-          </div>
-
           </form>
         </div>
 
-        <div className="p-5 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50">
-          <button type="button" onClick={onClose} className="btn btn-outline" disabled={loading}>
+        <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50">
+          <button 
+            type="button" onClick={onClose} 
+            className="btn-premium btn-premium-secondary" 
+            disabled={loading}
+          >
             Cancel
           </button>
-          <button type="submit" form="edit-user-form" className="btn btn-primary min-w-[120px]" disabled={loading}>
-            {loading ? 'Updating...' : 'Update User'}
+          <button 
+            type="submit" form="edit-user-form" 
+            className="btn-premium btn-premium-primary min-w-[140px]" 
+            disabled={loading}
+          >
+            {loading ? <RefreshCw className="animate-spin" size={18} /> : 'Update User'}
           </button>
         </div>
       </div>
@@ -508,28 +576,41 @@ const UserChargesModal = ({ isOpen, onClose, targetUser }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-slide-up border border-gray-100">
+        <div className="p-6 border-b border-gray-100 flex justify-between items-start">
           <div>
-            <h2 className="text-xl font-bold">Edit User Charges</h2>
-            <p className="text-xs text-gray-500">Managing for: <span className="font-bold text-primary">{targetUser.profile?.ownerName || targetUser.email}</span></p>
+            <h2 className="text-2xl font-bold text-gray-900">User Special Charges</h2>
+            <p className="text-sm text-gray-500 mt-1">Configure custom service rates for <span className="font-bold text-primary">{targetUser.profile?.ownerName || targetUser.email}</span></p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400">
             <X size={20} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-8">
+        <div className="flex-1 overflow-y-auto p-8 space-y-10">
           {/* List Existing Overrides */}
           <div className="space-y-4">
-            <h3 className="text-sm font-bold uppercase text-gray-400 tracking-wider">Current Charge Slabs</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs font-bold uppercase text-gray-400 tracking-wider">Active Charge Overrides</h3>
+              <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-[10px] font-bold">{overrides.length} Slabs</span>
+            </div>
+            
             {loading ? (
-              <div className="py-10 text-center text-gray-400">Loading slabs...</div>
+              <div className="py-12 flex flex-col items-center justify-center text-gray-400">
+                <RefreshCw className="animate-spin mb-2" size={24} />
+                <p className="text-sm">Fetching overrides...</p>
+              </div>
             ) : overrides.length === 0 ? (
-              <div className="py-10 text-center text-gray-400 bg-gray-50 rounded-xl border-2 border-dashed">No custom charges set for this user.</div>
+              <div className="py-12 text-center text-gray-400 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mx-auto mb-3">
+                  <Banknote className="text-gray-300" size={24} />
+                </div>
+                <p className="text-sm font-medium">No custom charges set for this user.</p>
+                <p className="text-xs mt-1">Add a new slab below to override default rates.</p>
+              </div>
             ) : (
-              <div className="data-table-container border rounded-xl overflow-hidden shadow-sm">
+              <div className="data-table-container border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
                 <table className="data-table">
                   <thead className="bg-gray-50">
                     <tr>
@@ -582,73 +663,79 @@ const UserChargesModal = ({ isOpen, onClose, targetUser }) => {
           <hr className="border-gray-100" />
 
           {/* Add/Edit Form */}
-          <form onSubmit={handleSubmit} className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100 space-y-4">
-            <h3 className="text-sm font-bold uppercase text-gray-400 tracking-wider">
-              {editingId ? 'Edit Slabs' : 'Add New Charge Slab'}
-            </h3>
+          <form onSubmit={handleSubmit} className="bg-gray-50/80 p-8 rounded-3xl border border-gray-100 space-y-6">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-bold uppercase text-gray-500 tracking-wider">
+                {editingId ? 'Edit Charge Slab' : 'Configure New Override Slab'}
+              </h3>
+              {editingId && (
+                <button type="button" onClick={resetForm} className="text-xs text-primary font-bold hover:underline">
+                  Cancel Edit
+                </button>
+              )}
+            </div>
             
-            {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>}
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-100 text-red-600 rounded-xl text-xs font-medium animate-shake">
+                {error}
+              </div>
+            )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase text-gray-500">Service Type</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="form-group">
+                <label className="form-label">Service Category</label>
                 <select 
                   value={formData.serviceType} 
                   onChange={(e) => setFormData({...formData, serviceType: e.target.value})}
-                  className="w-full"
+                  className="form-input form-select"
                 >
-                  <option value="PAYOUT">Payout</option>
-                  <option value="FUND_REQUEST">Fund Request</option>
+                  <option value="PAYOUT">Payout Services</option>
+                  <option value="FUND_REQUEST">Wallet Top-up (Fund Request)</option>
                 </select>
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase text-gray-500">Charge Type</label>
+              <div className="form-group">
+                <label className="form-label">Calculation Model</label>
                 <select 
                   value={formData.commissionType} 
                   onChange={(e) => setFormData({...formData, commissionType: e.target.value})}
-                  className="w-full"
+                  className="form-input form-select"
                 >
-                  <option value="FLAT">Flat Fee (₹)</option>
-                  <option value="PERCENTAGE">Percentage (%)</option>
+                  <option value="FLAT">Flat Fee per Transaction (₹)</option>
+                  <option value="PERCENTAGE">Percentage of Volume (%)</option>
                 </select>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase text-gray-500">Amount Slab (Min)</label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="form-group">
+                <label className="form-label">Min Amount Slab</label>
                 <input 
                   type="number" required value={formData.minAmount}
                   onChange={(e) => setFormData({...formData, minAmount: e.target.value})}
-                  placeholder="0" className="w-full"
+                  placeholder="0" className="form-input"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase text-gray-500">Amount Slab (Max)</label>
+              <div className="form-group">
+                <label className="form-label">Max Amount Slab</label>
                 <input 
                   type="number" value={formData.maxAmount}
                   onChange={(e) => setFormData({...formData, maxAmount: e.target.value})}
-                  placeholder="Max" className="w-full"
+                  placeholder="∞" className="form-input"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase text-gray-500">Charge Value</label>
+              <div className="form-group">
+                <label className="form-label">Charge Value</label>
                 <input 
                   type="number" step="0.01" required value={formData.commissionValue}
                   onChange={(e) => setFormData({...formData, commissionValue: e.target.value})}
-                  placeholder="0.00" className="w-full"
+                  placeholder="0.00" className="form-input"
                 />
               </div>
             </div>
 
-            <div className="flex justify-between items-center pt-2">
-              {editingId && (
-                <button type="button" onClick={resetForm} className="text-xs text-gray-500 hover:underline">
-                  Cancel Editing
-                </button>
-              )}
-              <button type="submit" className="btn btn-primary ml-auto flex items-center gap-2 px-6">
-                <Plus size={16} /> {editingId ? 'Update Slab' : 'Save New Slab'}
+            <div className="flex pt-2">
+              <button type="submit" className="btn-premium btn-premium-primary ml-auto min-w-[200px]">
+                {editingId ? 'Update Override' : 'Apply New Charge Slab'}
               </button>
             </div>
           </form>
@@ -745,6 +832,7 @@ export default function UserManagement() {
   const [filterStatus, setFilterStatus] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isChargesModalOpen, setIsChargesModalOpen] = useState(false);
@@ -753,9 +841,9 @@ export default function UserManagement() {
   const [openMenuId, setOpenMenuId] = useState(null);
 
   const canManageUsers = ['ADMIN', 'SUPER', 'DISTRIBUTOR'].includes(user.role);
-  const canDeleteUsers = user.role === 'ADMIN';
-  const canSetHold = user.role === 'ADMIN';
-  const canImpersonate = user.role === 'ADMIN';
+  const canDeleteUsers = ['ADMIN', 'SUPER', 'DISTRIBUTOR'].includes(user.role);
+  const canSetHold = ['ADMIN', 'SUPER', 'DISTRIBUTOR'].includes(user.role);
+  const canImpersonate = ['ADMIN', 'SUPER', 'DISTRIBUTOR'].includes(user.role);
   const filterRoles = getAvailableRoles(user.role);
 
   const fetchUsers = async () => {
@@ -764,6 +852,7 @@ export default function UserManagement() {
       const params = new URLSearchParams({ page: String(page), limit: '10' });
       if (filterRole) params.append('role', filterRole);
       if (filterStatus) params.append('status', filterStatus);
+      if (searchQuery) params.append('search', searchQuery);
 
       const { data } = await api.get(`/users?${params.toString()}`);
       if (data.success) {
@@ -777,8 +866,11 @@ export default function UserManagement() {
   };
 
   useEffect(() => {
-    fetchUsers();
-  }, [page, filterRole, filterStatus]);
+    const timer = setTimeout(() => {
+      fetchUsers();
+    }, 500); // Debounce search
+    return () => clearTimeout(timer);
+  }, [page, filterRole, filterStatus, searchQuery]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -870,17 +962,16 @@ export default function UserManagement() {
         )}
       </div>
 
-      <div className="card">
-        <div className="p-4 border-b border-gray-100 flex flex-wrap gap-4 items-center bg-gray-50/50">
+      <div className="flex flex-wrap items-center gap-4 p-4 bg-white rounded-2xl shadow-sm border border-gray-100 mb-6 animate-slide-up">
           <div className="flex items-center gap-2">
-            <Filter size={18} className="text-gray-400" />
+            <Filter size={18} className="text-gray-400 ml-2" />
             <select
               value={filterRole}
               onChange={(e) => {
                 setFilterRole(e.target.value);
                 setPage(1);
               }}
-              className="py-1.5 px-3"
+              className="form-input form-select py-2 h-10 min-w-[140px]"
             >
               <option value="">All Roles</option>
               {filterRoles.map((role) => (
@@ -895,18 +986,42 @@ export default function UserManagement() {
                 setFilterStatus(e.target.value);
                 setPage(1);
               }}
-              className="py-1.5 px-3"
+              className="form-input form-select py-2 h-10 min-w-[140px]"
             >
               <option value="">All Statuses</option>
               <option value="active">Active Only</option>
               <option value="inactive">Inactive Only</option>
             </select>
           </div>
-          <button onClick={fetchUsers} className="btn btn-outline py-1.5 px-3 text-xs ml-auto">
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+          
+          <div className="flex-1 min-w-[300px]">
+            <UserSearch 
+              onSelect={(u) => {
+                setSearchQuery(u ? u.email : '');
+                setPage(1);
+              }}
+              onQueryChange={(q) => {
+                setSearchQuery(q);
+                // Debounced fetch is already handled by the user typing, 
+                // but we might want to trigger a search on page 1
+                setPage(1);
+              }}
+              placeholder="Search by name, email or mobile..."
+              className="w-full"
+            />
+          </div>
+
+          <button 
+            onClick={fetchUsers} 
+            disabled={loading}
+            className="btn-premium btn-premium-secondary h-10 px-4"
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            <span className="hidden md:inline">Refresh</span>
           </button>
         </div>
 
+      <div className="card">
         <div className="data-table-container border-none shadow-none rounded-none">
           <table className="data-table">
             <thead>
@@ -917,7 +1032,7 @@ export default function UserManagement() {
                 <th>Hierarchy</th>
                 <th>Balance</th>
                 <th>Status</th>
-                <th>KYC</th>
+                {/* <th>KYC</th> */}
                 <th>Joined</th>
                 <th className="sticky-col-right">Actions</th>
               </tr>
@@ -979,11 +1094,11 @@ export default function UserManagement() {
                         {managedUser.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td>
-                      <span className={`badge ${managedUser.kycStatus === 'VERIFIED' ? 'badge-success' : managedUser.kycStatus === 'REJECTED' ? 'badge-danger' : 'badge-warning'}`}>
-                        {managedUser.kycStatus}
-                      </span>
-                    </td>
+                    {/* <td>
+                       <span className={`badge ${managedUser.kycStatus === 'VERIFIED' ? 'badge-success' : managedUser.kycStatus === 'REJECTED' ? 'badge-danger' : 'badge-warning'}`}>
+                         {managedUser.kycStatus}
+                       </span>
+                     </td> */}
                     <td>
                       <span className="text-xs text-gray-500">
                         {new Date(managedUser.createdAt).toLocaleDateString()}

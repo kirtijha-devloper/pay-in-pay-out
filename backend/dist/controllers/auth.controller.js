@@ -7,6 +7,7 @@ exports.changeTransactionPin = exports.loginAs = exports.changePassword = export
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prisma_1 = __importDefault(require("../lib/prisma"));
+const userHierarchy_service_1 = require("../services/userHierarchy.service");
 function buildPublicUserPayload(user) {
     return {
         id: user.id,
@@ -99,12 +100,12 @@ const changePassword = async (req, res) => {
 exports.changePassword = changePassword;
 const loginAs = async (req, res) => {
     const { userId } = req.body;
-    // Only admin can login as another user
-    if (req.user.role !== 'ADMIN') {
-        res.status(403).json({ success: false, message: 'Only admins can login as other users' });
-        return;
-    }
     try {
+        const hierarchyUsers = await (0, userHierarchy_service_1.fetchHierarchyUsers)();
+        if (!(0, userHierarchy_service_1.canManageTarget)(req.user, userId, hierarchyUsers)) {
+            res.status(403).json({ success: false, message: 'Forbidden: You cannot login as this user' });
+            return;
+        }
         const targetUser = await prisma_1.default.user.findUnique({
             where: { id: userId },
             include: { profile: true, wallet: true },

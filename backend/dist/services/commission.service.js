@@ -164,23 +164,15 @@ async function loadRateContext(userId, serviceTypes, options = {}) {
 }
 function selectResolvedRate(user, ancestors, serviceType, amountPaise, defaults, overrides) {
     for (const ancestor of ancestors) {
+        // Only charges explicitly set by the immediate parent for this user should apply.
+        if (ancestor.id !== user.parentId) {
+            continue;
+        }
         const override = overrides.find((row) => row.setById === ancestor.id && row.serviceType === serviceType && matchesAmount(row, amountPaise));
         if (override) {
             return override;
         }
-        const roleDefaultRow = defaults.find((row) => row.setById === ancestor.id &&
-            row.serviceType === serviceType &&
-            row.applyOnRole === user.role &&
-            matchesAmount(row, amountPaise));
-        if (roleDefaultRow) {
-            return roleDefaultRow;
-        }
-        // If the ancestor has a default slab for this amount but not for the
-        // current user's role, treat it as the inherited fallback for that branch.
-        const fallbackDefaultRow = defaults.find((row) => row.setById === ancestor.id && row.serviceType === serviceType && matchesAmount(row, amountPaise));
-        if (fallbackDefaultRow) {
-            return fallbackDefaultRow;
-        }
+        return null;
     }
     return null;
 }

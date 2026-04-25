@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { Edit2, Plus, ShieldCheck, Trash2, UserPlus } from 'lucide-react';
+import { Edit2, Plus, ShieldCheck, Trash2, UserPlus, User, X } from 'lucide-react';
+import UserSearch from '../components/common/UserSearch';
 
 const MANAGER_ROLES = ['ADMIN', 'SUPER', 'DISTRIBUTOR'];
 const ROLE_OPTIONS_BY_MANAGER = {
@@ -174,23 +175,30 @@ function DefaultRateModal({ isOpen, onClose, onSaved, initialData, allowedRoles 
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl w-full max-w-xl p-6">
-        <h2 className="text-xl font-bold mb-1">{initialData ? 'Edit Default Rate' : 'Add Default Rate'}</h2>
-        <p className="text-sm text-gray-500 mb-5">
-          Default slabs apply to your direct children for the selected role and cannot be lower than the inherited rate.
-        </p>
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl w-full max-w-xl p-8 shadow-2xl animate-slide-up border border-gray-100">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">{initialData ? 'Edit Default Rate' : 'Add Default Rate'}</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Set standard rates for your direct children.
+            </p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400">
+            <X size={20} />
+          </button>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase">Service</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="form-group">
+              <label className="form-label">Service</label>
               <select
                 value={formData.serviceType}
                 onChange={(event) => setFormData({ ...formData, serviceType: event.target.value })}
-                className="w-full"
+                className="form-input form-select"
               >
                 {SERVICE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -199,12 +207,12 @@ function DefaultRateModal({ isOpen, onClose, onSaved, initialData, allowedRoles 
                 ))}
               </select>
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase">Child Role</label>
+            <div className="form-group">
+              <label className="form-label">Child Role</label>
               <select
                 value={formData.applyOnRole}
                 onChange={(event) => setFormData({ ...formData, applyOnRole: event.target.value })}
-                className="w-full"
+                className="form-input form-select"
               >
                 {allowedRoles.map((role) => (
                   <option key={role} value={role}>
@@ -215,13 +223,13 @@ function DefaultRateModal({ isOpen, onClose, onSaved, initialData, allowedRoles 
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase">Charge Type</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="form-group">
+              <label className="form-label">Charge Type</label>
               <select
                 value={formData.commissionType}
                 onChange={(event) => setFormData({ ...formData, commissionType: event.target.value })}
-                className="w-full"
+                className="form-input form-select"
               >
                 {COMMISSION_TYPE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -230,8 +238,8 @@ function DefaultRateModal({ isOpen, onClose, onSaved, initialData, allowedRoles 
                 ))}
               </select>
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase">Charge Value</label>
+            <div className="form-group">
+              <label className="form-label">Charge Value</label>
               <input
                 type="number"
                 min="0"
@@ -239,14 +247,15 @@ function DefaultRateModal({ isOpen, onClose, onSaved, initialData, allowedRoles 
                 required
                 value={formData.commissionValue}
                 onChange={(event) => setFormData({ ...formData, commissionValue: event.target.value })}
-                className="w-full"
+                className="form-input"
+                placeholder="0.00"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase">Min Amount</label>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="form-group">
+              <label className="form-label">Min Amount</label>
               <input
                 type="number"
                 min="0"
@@ -254,40 +263,49 @@ function DefaultRateModal({ isOpen, onClose, onSaved, initialData, allowedRoles 
                 required
                 value={formData.minAmount}
                 onChange={(event) => setFormData({ ...formData, minAmount: event.target.value })}
-                className="w-full"
+                className="form-input"
+                placeholder="0.00"
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase">Max Amount</label>
+            <div className="form-group">
+              <label className="form-label">Max Amount</label>
               <input
                 type="number"
                 min="0"
                 step="0.01"
                 value={formData.maxAmount}
                 onChange={(event) => setFormData({ ...formData, maxAmount: event.target.value })}
-                className="w-full"
-                placeholder="Leave blank for Max"
+                className="form-input"
+                placeholder="∞"
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase">Status</label>
+            <div className="form-group">
+              <label className="form-label">Status</label>
               <select
-                value={String(formData.isActive)}
+                value={formData.isActive ? 'true' : 'false'}
                 onChange={(event) => setFormData({ ...formData, isActive: event.target.value === 'true' })}
-                className="w-full"
+                className="form-input form-select"
               >
                 <option value="true">Active</option>
-                <option value="false">Paused</option>
+                <option value="false">Inactive</option>
               </select>
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="btn btn-outline" disabled={saving}>
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-premium btn-premium-secondary"
+            >
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Saving...' : initialData ? 'Update Rate' : 'Save Rate'}
+            <button
+              type="submit"
+              disabled={saving}
+              className="btn-premium btn-premium-primary"
+            >
+              {saving ? <Loader2 className="animate-spin" size={18} /> : (initialData ? 'Update Rate' : 'Save Rate')}
             </button>
           </div>
         </form>
@@ -298,6 +316,7 @@ function DefaultRateModal({ isOpen, onClose, onSaved, initialData, allowedRoles 
 
 function UserOverrideModal({ isOpen, onClose, onSaved, initialData, targets }) {
   const [formData, setFormData] = useState(createEmptyOverride(targets));
+  const [selectedUser, setSelectedUser] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -309,6 +328,12 @@ function UserOverrideModal({ isOpen, onClose, onSaved, initialData, targets }) {
     setSaving(false);
     setError('');
     setFormData(toFormState(initialData, createEmptyOverride(targets)));
+    
+    if (initialData?.targetUser) {
+      setSelectedUser(initialData.targetUser);
+    } else {
+      setSelectedUser(null);
+    }
   }, [initialData, isOpen, targets]);
 
   if (!isOpen) {
@@ -317,6 +342,10 @@ function UserOverrideModal({ isOpen, onClose, onSaved, initialData, targets }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (!formData.targetUserId) {
+      setError('Please select a target user');
+      return;
+    }
     setSaving(true);
     setError('');
 
@@ -342,40 +371,61 @@ function UserOverrideModal({ isOpen, onClose, onSaved, initialData, targets }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl w-full max-w-xl p-6">
-        <h2 className="text-xl font-bold mb-1">{initialData ? 'Edit User Override' : 'Add User Override'}</h2>
-        <p className="text-sm text-gray-500 mb-5">
-          Override any active user in your managed hierarchy for the chosen range, but do not set a lower rate than the inherited one.
-        </p>
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl w-full max-w-xl p-8 shadow-2xl animate-slide-up border border-gray-100">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">{initialData ? 'Edit User Override' : 'Add User Override'}</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Custom rates for specific users in your managed hierarchy.
+            </p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400">
+            <X size={20} />
+          </button>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-          <div className="space-y-1">
-            <label className="text-xs font-bold uppercase">Target User</label>
-            <select
-              value={formData.targetUserId}
-              onChange={(event) => setFormData({ ...formData, targetUserId: event.target.value })}
-              required
-              className="w-full"
-            >
-              <option value="">Select managed user</option>
-              {targets.map((target) => (
-                <option key={target.id} value={target.id}>
-                  {getTargetLabel(target)}
-                </option>
-              ))}
-            </select>
+          <div className="form-group">
+            <label className="form-label">TARGET USER</label>
+            {selectedUser ? (
+              <div className="flex items-center justify-between p-4 bg-primary-light/50 border border-primary/20 rounded-xl animate-fade-in group">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center text-primary">
+                    <User size={24} />
+                  </div>
+                  <div>
+                    <div className="text-base font-bold text-gray-900">{getTargetLabel(selectedUser)}</div>
+                    <div className="text-sm text-gray-500">{selectedUser.email}</div>
+                  </div>
+                </div>
+                {!initialData && (
+                  <button 
+                    type="button" 
+                    onClick={() => { setSelectedUser(null); setFormData({ ...formData, targetUserId: '' }); }} 
+                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                  >
+                    <X size={20} />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <UserSearch onSelect={(u) => {
+                setSelectedUser(u);
+                setFormData({ ...formData, targetUserId: u?.id || '' });
+              }} />
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase">Service</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="form-group">
+              <label className="form-label">Service</label>
               <select
                 value={formData.serviceType}
                 onChange={(event) => setFormData({ ...formData, serviceType: event.target.value })}
-                className="w-full"
+                className="form-input form-select"
               >
                 {SERVICE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -384,12 +434,12 @@ function UserOverrideModal({ isOpen, onClose, onSaved, initialData, targets }) {
                 ))}
               </select>
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase">Charge Type</label>
+            <div className="form-group">
+              <label className="form-label">Charge Type</label>
               <select
                 value={formData.commissionType}
                 onChange={(event) => setFormData({ ...formData, commissionType: event.target.value })}
-                className="w-full"
+                className="form-input form-select"
               >
                 {COMMISSION_TYPE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -400,9 +450,9 @@ function UserOverrideModal({ isOpen, onClose, onSaved, initialData, targets }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase">Charge Value</label>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="form-group">
+              <label className="form-label">Charge Value</label>
               <input
                 type="number"
                 min="0"
@@ -410,11 +460,12 @@ function UserOverrideModal({ isOpen, onClose, onSaved, initialData, targets }) {
                 required
                 value={formData.commissionValue}
                 onChange={(event) => setFormData({ ...formData, commissionValue: event.target.value })}
-                className="w-full"
+                className="form-input"
+                placeholder="0.00"
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase">Min Amount</label>
+            <div className="form-group">
+              <label className="form-label">Min Amount</label>
               <input
                 type="number"
                 min="0"
@@ -422,19 +473,20 @@ function UserOverrideModal({ isOpen, onClose, onSaved, initialData, targets }) {
                 required
                 value={formData.minAmount}
                 onChange={(event) => setFormData({ ...formData, minAmount: event.target.value })}
-                className="w-full"
+                className="form-input"
+                placeholder="0.00"
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase">Max Amount</label>
+            <div className="form-group">
+              <label className="form-label">Max Amount</label>
               <input
                 type="number"
                 min="0"
                 step="0.01"
                 value={formData.maxAmount}
                 onChange={(event) => setFormData({ ...formData, maxAmount: event.target.value })}
-                className="w-full"
-                placeholder="Leave blank for Max"
+                className="form-input"
+                placeholder="∞"
               />
             </div>
           </div>
@@ -451,12 +503,20 @@ function UserOverrideModal({ isOpen, onClose, onSaved, initialData, targets }) {
             </select>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="btn btn-outline" disabled={saving}>
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-premium btn-premium-secondary"
+            >
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Saving...' : initialData ? 'Update Override' : 'Save Override'}
+            <button
+              type="submit"
+              disabled={saving}
+              className="btn-premium btn-premium-primary"
+            >
+              {saving ? <Loader2 className="animate-spin" size={18} /> : (initialData ? 'Update Override' : 'Save Override')}
             </button>
           </div>
         </form>
@@ -471,6 +531,7 @@ export default function Commissions() {
   const allowedRoles = getAssignableRoles(user.role);
 
   const [defaultRates, setDefaultRates] = useState([]);
+  const [inheritedDefaultRates, setInheritedDefaultRates] = useState([]);
   const [userOverrides, setUserOverrides] = useState([]);
   const [overrideTargets, setOverrideTargets] = useState([]);
   const [effectiveRates, setEffectiveRates] = useState([]);
@@ -505,6 +566,7 @@ export default function Commissions() {
         ]);
 
         setDefaultRates(defaultsResponse.success ? defaultsResponse.slabs : []);
+        setInheritedDefaultRates(defaultsResponse.success ? (defaultsResponse.inheritedSlabs || []) : []);
         setUserOverrides(overridesResponse.success ? overridesResponse.overrides : []);
         setOverrideTargets(targetsResponse.success ? targetsResponse.targets : []);
         setEffectiveRates(effectiveResponse.success ? effectiveResponse.slabs : []);
@@ -608,62 +670,109 @@ export default function Commissions() {
       ) : (
         <>
           {activeTab === 'defaults' && canManageRates && (
-            <div className="card">
-              <div className="data-table-container border-none shadow-none rounded-none">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Service</th>
-                      <th>Child Role</th>
-                      <th>Range</th>
-                      <th>Charge</th>
-                      <th>Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {defaultRates.length === 0 ? (
+            <div className="space-y-6">
+              {inheritedDefaultRates.length > 0 && (
+                <div className="card">
+                  <div className="p-4 border-b bg-amber-50/30 flex items-center gap-3">
+                    <ShieldCheck size={18} className="text-amber-600" />
+                    <div>
+                      <h2 className="font-bold text-sm uppercase text-amber-800 tracking-wider">Inherited Default Rates</h2>
+                      <p className="text-xs text-amber-600">These rates are set by your upline and apply as a baseline for your children.</p>
+                    </div>
+                  </div>
+                  <div className="data-table-container border-none shadow-none rounded-none">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Service</th>
+                          <th>Apply On</th>
+                          <th>Set By</th>
+                          <th>Range</th>
+                          <th>Charge</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {inheritedDefaultRates.map((rate) => (
+                          <tr key={rate.id} className="bg-amber-50/10">
+                            <td className="font-semibold">{SERVICE_LABELS[rate.serviceType] || rate.serviceType}</td>
+                            <td>{ROLE_LABELS[rate.applyOnRole] || rate.applyOnRole}</td>
+                            <td>
+                              <div className="text-xs">
+                                <div className="font-bold text-gray-700">{rate.setBy?.profile?.ownerName || rate.setBy?.email}</div>
+                                <div className="text-gray-400">({ROLE_LABELS[rate.setBy?.role]})</div>
+                              </div>
+                            </td>
+                            <td>{formatRange(rate.minAmount, rate.maxAmount)}</td>
+                            <td className="font-medium text-amber-600">{formatCharge(rate.commissionType, rate.commissionValue)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <div className="card">
+                <div className="p-4 border-b bg-gray-50/30">
+                  <h2 className="font-bold text-sm uppercase text-gray-700 tracking-wider">My Custom Default Rates</h2>
+                  <p className="text-xs text-gray-500">Rates you've specifically defined for your direct children.</p>
+                </div>
+                <div className="data-table-container border-none shadow-none rounded-none">
+                  <table className="data-table">
+                    <thead>
                       <tr>
-                        <td colSpan="6" className="text-center py-10 text-gray-400">
-                          No default rates configured yet.
-                        </td>
+                        <th>Service</th>
+                        <th>Child Role</th>
+                        <th>Range</th>
+                        <th>Charge</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                       </tr>
-                    ) : (
-                      defaultRates.map((rate) => (
-                        <tr key={rate.id}>
-                          <td className="font-semibold text-primary">{SERVICE_LABELS[rate.serviceType] || rate.serviceType}</td>
-                          <td>{ROLE_LABELS[rate.applyOnRole] || rate.applyOnRole}</td>
-                          <td>{formatRange(rate.minAmount, rate.maxAmount)}</td>
-                          <td className="font-medium text-emerald-600">{formatCharge(rate.commissionType, rate.commissionValue)}</td>
-                          <td>
-                            <StatusBadge isActive={rate.isActive} />
-                          </td>
-                          <td>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => {
-                                  setCurrentDefaultRate(rate);
-                                  setIsDefaultModalOpen(true);
-                                }}
-                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
-                                type="button"
-                              >
-                                <Edit2 size={16} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteDefaultRate(rate.id)}
-                                className="p-1.5 text-red-600 hover:bg-red-50 rounded"
-                                type="button"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
+                    </thead>
+                    <tbody>
+                      {defaultRates.length === 0 ? (
+                        <tr>
+                          <td colSpan="6" className="text-center py-10 text-gray-400 text-sm italic">
+                            No custom default rates configured. Inherited rates will apply.
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ) : (
+                        defaultRates.map((rate) => (
+                          <tr key={rate.id}>
+                            <td className="font-semibold text-primary">{SERVICE_LABELS[rate.serviceType] || rate.serviceType}</td>
+                            <td>{ROLE_LABELS[rate.applyOnRole] || rate.applyOnRole}</td>
+                            <td>{formatRange(rate.minAmount, rate.maxAmount)}</td>
+                            <td className="font-medium text-emerald-600">{formatCharge(rate.commissionType, rate.commissionValue)}</td>
+                            <td>
+                              <StatusBadge isActive={rate.isActive} />
+                            </td>
+                            <td>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    setCurrentDefaultRate(rate);
+                                    setIsDefaultModalOpen(true);
+                                  }}
+                                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                  type="button"
+                                >
+                                  <Edit2 size={16} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteDefaultRate(rate.id)}
+                                  className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                  type="button"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
