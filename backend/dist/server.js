@@ -22,6 +22,9 @@ const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
 const defaultAllowedOrigins = [
     'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
     'https://pay-in-pay-out.vercel.app',
     'https://rentsoftpro.com',
     'https://www.rentsoftpro.com',
